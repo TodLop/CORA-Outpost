@@ -1,13 +1,47 @@
-# CORA Minecraft Admin
+# CORA-Outpost
 
-CORA Minecraft Admin is a FastAPI-based operations dashboard for a Minecraft
-Paper server. It was extracted from the larger CORA-live codebase as a
-public-safe, admin-focused repository.
+CORA-Outpost is a security-first Minecraft Paper operations cockpit built from
+7 months of live server operation and 6+ months of solo development.
+
+It focuses on the operational problems that generic server panels do not fully
+solve: staff permissions, moderation workflows, plugin update safety, redacted
+logs, backups, recovery, and runbook-driven operations.
+
+This repository is the public-safe admin and operations extraction from the
+larger CORA-live codebase. Internal module identifiers such as
+`minecraft_admin` are intentionally kept stable even though the public GitHub
+project name is CORA-Outpost.
 
 The repository is intentionally scoped to protected server operations only. It
 does not include the public community website, player records, economy, market,
 donations, Wrapped pages, portfolio/finance tools, proxy modules, runtime data,
 credentials, logs, backups, or incident artifacts.
+
+## Why This Exists
+
+CORA-Outpost was not designed as another generic hosting panel. It came from
+running a live Minecraft server and repeatedly hitting the same operational
+questions:
+
+- Who should be allowed to start, restart, stop, or recover the server?
+- How should staff actions be bounded so mistakes do not become incidents?
+- How can moderation, warnings, whitelist, watchlist, and investigations stay
+  visible in one workflow?
+- How should plugin updates be checked before they affect the live server?
+- How can logs stay useful while avoiding sensitive data exposure?
+- How can backup, maintenance, and recovery steps become repeatable?
+
+```mermaid
+flowchart LR
+    LiveOps["Live Paper server operation"] --> Pain["Repeated operator pain"]
+    Pain --> Cockpit["CORA-Outpost<br/>Ops & Safety cockpit"]
+
+    Cockpit --> Access["Staff access boundaries<br/>RBAC + admin tiers"]
+    Cockpit --> Moderation["Moderation workflow<br/>warnings, watchlist, investigation"]
+    Cockpit --> Runtime["Runtime safety<br/>profiles, guarded operations, idempotency"]
+    Cockpit --> Plugins["Plugin safety<br/>inventory, docs, update preflight"]
+    Cockpit --> Recovery["Recovery posture<br/>logs, backups, scheduler, runbooks"]
+```
 
 ## What This Project Does
 
@@ -18,6 +52,22 @@ credentials, logs, backups, or incident artifacts.
 - Supports plugin inventory, plugin documentation, update workflows, and Modrinth search/install flows.
 - Exposes operational views for metrics, redacted logs, scheduler state, backups, and backend runbook docs.
 - Keeps dangerous shell/RCON surfaces disabled in this public extraction.
+
+## Positioning
+
+CORA-Outpost is meant to sit in the operations layer, not to compete as a full
+generic game-hosting control panel.
+
+| Area | Generic hosting panels | CORA-Outpost |
+| --- | --- | --- |
+| Server creation and container hosting | Core focus | Not the main focus |
+| File manager and generic console access | Often broad | Safety-focused and intentionally limited |
+| Staff workflow | Varies by panel | Core focus |
+| Moderation workflow | Often external/plugin-specific | Core focus |
+| Plugin update safety | Partial or manual | Core focus |
+| Operational runbooks | Usually separate | Built into the admin workflow |
+| Dangerous command reduction | Varies | Explicit design goal |
+| Origin story | General server management | Built from live Minecraft server operation |
 
 ## Architecture
 
@@ -208,11 +258,11 @@ tests/
 ## Local Setup
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-python - <<'PY'
+python3 - <<'PY'
 from app import create_app
 app = create_app()
 print(app.title)
@@ -230,8 +280,8 @@ uvicorn app:create_app --factory --host 127.0.0.1 --port 8000
 Before publishing or pushing a mirror, run:
 
 ```bash
-python scripts/check_public_extract.py
-python -m pytest tests/test_public_extract_scope.py
+python3 scripts/check_public_extract.py
+python3 -m pytest tests/test_public_extract_scope.py
 ```
 
 The checker fails on common private paths, live identity defaults, excluded modules/routes, terminal shell surfaces, generated caches, and broad module defaults.
@@ -239,7 +289,7 @@ The checker fails on common private paths, live identity defaults, excluded modu
 For a fuller confidence check, run the complete test suite:
 
 ```bash
-SECRET_KEY=replace-with-a-long-random-secret ENABLED_MODULES=minecraft_admin python -m pytest
+SECRET_KEY=replace-with-a-long-random-secret ENABLED_MODULES=minecraft_admin python3 -m pytest
 ```
 
 ## Safety Defaults
