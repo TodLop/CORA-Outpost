@@ -250,6 +250,15 @@ SECRET_KEY=replace-with-a-long-random-secret ENABLED_MODULES=minecraft_admin pyt
 - Arbitrary RCON command execution and RCON password generation are disabled in this public extraction.
 - Browser terminal/PTTY access is excluded.
 
+## License
+
+This project is licensed under the Apache License, Version 2.0. See
+`LICENSE` for the full license text.
+
+Third-party libraries and vendored browser assets remain under their own
+licenses. See `THIRD_PARTY_NOTICES.md` for a best-effort summary of direct
+dependencies and bundled frontend assets.
+
 ## Publication Checklist
 
 - Run `python scripts/check_public_extract.py`.
@@ -257,4 +266,4 @@ SECRET_KEY=replace-with-a-long-random-secret ENABLED_MODULES=minecraft_admin pyt
 - Confirm `git status --short --ignored` is clean.
 - Confirm `git remote -v` is empty before intentionally adding a new GitHub remote.
 - Review `.env.example` and keep only placeholders or example values.
-- Decide whether to add a license before making the repository public.
+- Review `LICENSE` and `THIRD_PARTY_NOTICES.md` before publishing a new mirror.
