@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Project Octopus{% endblock %}</title>
+
+    {% include "components/favicon_links.html" %}
+
+    <script>
+        (function () {
+            const storageKey = 'coraAdminPreferences';
+            const themeValues = ['dark', 'light', 'system'];
+            const defaults = {
+                language: 'ko',
+                theme: 'dark',
+                font_scale: 'md',
+                high_contrast: false,
+                reduced_motion: false,
+                toast_duration_ms: 4000,
+            };
+
+            function normalize(preferences) {
+                const raw = preferences && typeof preferences === 'object' ? preferences : {};
+                return {
+                    ...defaults,
+                    ...raw,
+                    theme: themeValues.includes(raw.theme) ? raw.theme : defaults.theme,
+                    font_scale: ['sm', 'md', 'lg'].includes(raw.font_scale) ? raw.font_scale : defaults.font_scale,
+                    high_contrast: raw.high_contrast === true,
+                    reduced_motion: raw.reduced_motion === true,
+                };
+            }
+
+            function resolvedTheme(theme) {
+                if (theme === 'system') {
+                    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+                        ? 'light'
+                        : 'dark';
+                }
+                return theme === 'light' ? 'light' : 'dark';
+            }
+
+            function apply(preferences) {
+                const prefs = normalize(preferences);
+                const html = document.documentElement;
+                const activeTheme = resolvedTheme(prefs.theme);
+                html.lang = prefs.language || 'ko';
+                html.setAttribute('data-font-scale', prefs.font_scale || 'md');
+                html.setAttribute('data-high-contrast', prefs.high_contrast ? 'true' : 'false');
+                html.setAttribute('data-reduced-motion', prefs.reduced_motion ? 'true' : 'false');
+                html.setAttribute('data-theme-preference', prefs.theme);
+                html.classList.remove('pref-theme-light', 'pref-theme-dark');
+                html.classList.add(`pref-theme-${activeTheme}`);
+                return prefs;
+            }
+
+            function readCached() {
+                try {
+                    return normalize(JSON.parse(localStorage.getItem(storageKey) || '{}'));
+                } catch (e) {
+                    return normalize({});
+                }
+            }
+
+            function store(preferences) {
+                const prefs = normalize(preferences);
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(prefs));
+                } catch (e) {
+                    // Preferences still apply for the current page when storage is unavailable.
+                }
+                return prefs;
+            }
+
+            async function loadFromServer() {
+                const path = window.location.pathname || '';
+                const preferredEndpoints = path.startsWith('/minecraft/staff')
+                    ? ['/minecraft/staff/api/preferences', '/minecraft/admin/api/preferences']
+                    : ['/minecraft/admin/api/preferences', '/minecraft/staff/api/preferences'];
+
+                for (const endpoint of preferredEndpoints) {
+                    try {
+                        const response = await fetch(endpoint, { credentials: 'same-origin' });
+                        if (response.status === 401 || response.status === 403 || response.status === 404) {
+                            continue;
+                        }
+                        if (!response.ok) {
+                            continue;
+                        }
+                        const data = await response.json();
+                        if (data.status === 'ok' && data.preferences) {
+                            const prefs = store(data.preferences);
+                            apply(prefs);
+                            window.dispatchEvent(new CustomEvent('cora-preferences-loaded', { detail: prefs }));
+                            return prefs;
+                        }
+                    } catch (e) {
+                        // Try the next endpoint. Some shared pages are reachable by staff and admins.
+                    }
+                }
+                return null;
+            }
+
+            const cached = readCached();
+            apply(cached);
+
+            window.CoraAdminPreferences = {
+                defaults,
+                normalize,
+                apply,
+                store,
+                readCached,
+                loadFromServer,
+            };
+
+            if (window.matchMedia) {
+                const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: light)');
+                const handleSystemThemeChange = () => {
+                    const current = readCached();
+                    if (current.theme === 'system') {
+                        apply(current);
+                    }
+                };
+                if (colorSchemeQuery.addEventListener) {
+                    colorSchemeQuery.addEventListener('change', handleSystemThemeChange);
+                } else if (colorSchemeQuery.addListener) {
+                    colorSchemeQuery.addListener(handleSystemThemeChange);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                loadFromServer();
+            });
+        })();
+    </script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX for dynamic content -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Alpine.js for reactive UI -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            max-width: 100%;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            color: #f8fafc;
+            background:
+                radial-gradient(circle at 20% -20%, rgba(16, 185, 129, 0.08), transparent 40%),
+                radial-gradient(circle at 80% -10%, rgba(59, 130, 246, 0.08), transparent 42%),
+                #050505;
+            overflow-x: hidden;
+        }
+
+        img,
+        svg,
+        canvas,
+        video {
+            max-width: 100%;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Glass panel effect */
+        .glass-panel {
+            background: rgba(10, 13, 20, 0.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 20px 45px -14px rgba(2, 6, 23, 0.65);
+        }
+
+        /* Glitch text animation */
+        .glitch-text {
+            position: relative;
+        }
+
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -1px 0 #00ffff;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -1px 0 #ff00ff;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(30px, 9999px, 10px, 0); }
+            20% { clip: rect(80px, 9999px, 90px, 0); }
+            40% { clip: rect(10px, 9999px, 40px, 0); }
+            60% { clip: rect(50px, 9999px, 20px, 0); }
+            80% { clip: rect(20px, 9999px, 60px, 0); }
+            100% { clip: rect(70px, 9999px, 30px, 0); }
+        }
+
+        @keyframes glitch-anim2 {
+            0% { clip: rect(10px, 9999px, 80px, 0); }
+            20% { clip: rect(30px, 9999px, 10px, 0); }
+            40% { clip: rect(90px, 9999px, 20px, 0); }
+            60% { clip: rect(10px, 9999px, 50px, 0); }
+            80% { clip: rect(60px, 9999px, 30px, 0); }
+            100% { clip: rect(40px, 9999px, 70px, 0); }
+        }
+
+        /* Status indicators */
+        .status-online {
+            background-color: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-offline {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        .status-coming-soon {
+            background-color: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        /* Scanline effect */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(34,211,238,0.1) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.045;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100%; }
+        }
+
+        /* Card hover effect */
+        .project-card {
+            transition: all 0.3s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(34, 211, 238, 0.3);
+            box-shadow: 0 20px 40px -12px rgba(34, 211, 238, 0.15);
+        }
+
+        /* Admin badge glow */
+        .admin-badge {
+            animation: admin-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes admin-pulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(168, 85, 247, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.8); }
+        }
+    </style>
+
+    <link rel="stylesheet" href="/static/css/admin-ui.css">
+
+    {% block head %}{% endblock %}
+</head>
+
+<body class="min-h-screen bg-[#050505] text-white antialiased" data-admin-shell>
+    <!-- Scanline overlay -->
+    <div class="scanline fixed inset-0 pointer-events-none z-50"></div>
+
+    {% block content %}{% endblock %}
+
+    {% include "components/admin_settings_modal.html" %}
+
+    <!-- Initialize Lucide icons -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // Re-initialize icons after HTMX swaps
+        document.body.addEventListener('htmx:afterSwap', () => {
+            lucide.createIcons();
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

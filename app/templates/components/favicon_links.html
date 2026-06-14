@@ -1,0 +1,15 @@
+{% set favicon = request.state.favicon if request is defined and request.state is defined and request.state.favicon is defined else {
+    "png16": "/static/favicon/default/favicon-16x16.png",
+    "png32": "/static/favicon/default/favicon-32x32.png",
+    "apple_touch": "/static/favicon/default/apple-touch-icon.png",
+    "ico": "/static/favicon/default/favicon.ico",
+    "manifest": "/static/favicon/default/site.webmanifest",
+    "theme_color": "#475569"
+} %}
+
+<link rel="icon" type="image/png" sizes="32x32" href="{{ favicon.png32 }}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{ favicon.png16 }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ favicon.apple_touch }}">
+<link rel="shortcut icon" href="{{ favicon.ico }}">
+<link rel="manifest" href="{{ favicon.manifest }}">
+<meta name="theme-color" content="{{ favicon.theme_color }}">

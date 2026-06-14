@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Statistics | Near Outpost</title>
+    <meta name="description" content="Near Outpost 마인크래프트 서버 통계 - 일간 활성 이용자, 동시 접속자, 피크 시간대 분석">
+
+    {% include "components/favicon_links.html" %}
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #16161f;
+            --border-color: #2a2a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-amber: #f59e0b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-green);
+        }
+        
+        .stat-card .icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .stat-card .icon.green { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .stat-card .icon.blue { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+        .stat-card .icon.purple { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
+        .stat-card .icon.amber { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+        
+        .stat-card .value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-card .label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        /* Chart Sections */
+        .chart-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-section h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        /* Heatmap */
+        .heatmap-container {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            gap: 4px;
+        }
+        
+        .heatmap-cell {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+        
+        .heatmap-cell:hover {
+            transform: scale(1.2);
+            z-index: 10;
+        }
+        
+        .heatmap-labels {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            gap: 4px;
+            margin-top: 8px;
+        }
+        
+        .heatmap-labels span {
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+        
+        /* Player Timeline */
+        .player-select-container {
+            margin-bottom: 1rem;
+        }
+        
+        .player-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .timeline-day {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .timeline-date {
+            width: 80px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .timeline-bar-container {
+            flex: 1;
+            height: 28px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            position: relative;
+        }
+        
+        .timeline-bar {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+            border-radius: 4px;
+            opacity: 0.8;
+        }
+        
+        .timeline-hours {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 0.5rem;
+            margin-top: 4px;
+        }
+        
+        .timeline-hours span {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+        
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-green);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.75rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.75rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-container { height: 250px; }
+            .heatmap-container { gap: 2px; }
+        }
+        
+        /* Back link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+        
+        .back-link:hover {
+            color: var(--accent-green);
+        }
+        
+        /* Period Selector */
+        .period-selector {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .period-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .period-btn:hover {
+            border-color: var(--accent-green);
+            color: var(--text-primary);
+        }
+        
+        .period-btn.active {
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            border-color: transparent;
+            color: white;
+        }
+    </style>
+</head>
+<body x-data="statusDashboard()">
+    <div class="container">
+        <!-- Back Link -->
+        <a href="/" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Home
+        </a>
+        
+        <!-- Header -->
+        <header class="header">
+            <h1>📊 Server Statistics</h1>
+            <p>Near Outpost Minecraft Server Analytics</p>
+        </header>
+        
+        <!-- Period Selector -->
+        <div class="period-selector">
+            <button class="period-btn" :class="{ 'active': selectedPeriod === 7 }" @click="changePeriod(7)">7일</button>
+            <button class="period-btn" :class="{ 'active': selectedPeriod === 30 }" @click="changePeriod(30)">30일</button>
+            <button class="period-btn" :class="{ 'active': selectedPeriod === 60 }" @click="changePeriod(60)">60일</button>
+            <button class="period-btn" :class="{ 'active': selectedPeriod === 90 }" @click="changePeriod(90)">90일</button>
+            <button class="period-btn" :class="{ 'active': selectedPeriod === 0 }" @click="changePeriod(0)">전체</button>
+        </div>
+        
+        <!-- Loading State -->
+        <template x-if="loading">
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading statistics...</span>
+            </div>
+        </template>
+        
+        <!-- Main Content -->
+        <template x-if="!loading">
+            <div>
+                <!-- Summary Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon green">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                        </div>
+                        <div class="value" x-text="todayDau">0</div>
+                        <div class="label">Today's Active Users</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="icon blue">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                                <polyline points="17 6 23 6 23 12"/>
+                            </svg>
+                        </div>
+                        <div class="value" x-text="todayPeak">0</div>
+                        <div class="label">Today's Peak Concurrent</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="icon purple">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </div>
+                        <div class="value" x-text="totalPlayers">0</div>
+                        <div class="label">Total Unique Players</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="icon amber">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div class="value" x-text="peakHour + ':00'">--</div>
+                        <div class="label">Peak Hour</div>
+                    </div>
+                </div>
+                
+                <!-- DAU Chart -->
+                <div class="chart-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                        </svg>
+                        Daily Active Users <span x-text="periodLabel"></span>
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="dauChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Peak Concurrent Chart -->
+                <div class="chart-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                        </svg>
+                        Peak Concurrent Players <span x-text="periodLabel"></span>
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="peakChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Cumulative Players Chart -->
+                <div class="chart-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20V10M18 20V4M6 20v-4"/>
+                        </svg>
+                        Cumulative Unique Players
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="cumulativeChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Hourly Heatmap -->
+                <div class="chart-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        Activity by Hour (Last 7 Days)
+                    </h2>
+                    <div class="heatmap-container">
+                        <template x-for="hour in 24" :key="hour">
+                            <div class="heatmap-cell" 
+                                 :style="getHeatmapCellStyle(hour - 1)"
+                                 :title="`${hour - 1}:00 - ${heatmapData[hour - 1] || 0} joins`">
+                            </div>
+                        </template>
+                    </div>
+                    <div class="heatmap-labels">
+                        <template x-for="hour in 24" :key="'label-' + hour">
+                            <span x-text="(hour - 1) % 3 === 0 ? (hour - 1) + ':00' : ''"></span>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Player Timeline -->
+                <div class="chart-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        Player Timeline (Last 7 Days)
+                    </h2>
+                    <div class="player-select-container">
+                        <select class="player-select" x-model="selectedPlayer" @change="loadPlayerSessions()">
+                            <option value="">Select a player...</option>
+                            <template x-for="player in players" :key="player">
+                                <option :value="player" x-text="player"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <template x-if="selectedPlayer && playerSessions.length > 0">
+                        <div>
+                            <div class="timeline-container">
+                                <template x-for="day in groupedSessions" :key="day.date">
+                                    <div class="timeline-day">
+                                        <div class="timeline-date" x-text="formatDate(day.date)"></div>
+                                        <div class="timeline-bar-container">
+                                            <template x-for="session in day.sessions" :key="session.join">
+                                                <div class="timeline-bar" :style="getSessionBarStyle(session)"></div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="timeline-hours">
+                                <span>00:00</span>
+                                <span>06:00</span>
+                                <span>12:00</span>
+                                <span>18:00</span>
+                                <span>24:00</span>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="selectedPlayer && playerSessions.length === 0">
+                        <p style="color: var(--text-secondary); padding: 1rem;">No sessions found for this player.</p>
+                    </template>
+                    <template x-if="!selectedPlayer">
+                        <p style="color: var(--text-secondary); padding: 1rem;">Select a player to view their activity timeline.</p>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+    
+    <script>
+        function statusDashboard() {
+            return {
+                loading: true,
+                dailyStats: [],
+                heatmapData: {},
+                players: [],
+                selectedPlayer: '',
+                playerSessions: [],
+                selectedPeriod: 30,
+                
+                // Charts
+                dauChart: null,
+                peakChart: null,
+                cumulativeChart: null,
+                
+                get periodLabel() {
+                    if (this.selectedPeriod === 0) return '(전체)';
+                    return `(최근 ${this.selectedPeriod}일)`;
+                },
+                
+                get todayDau() {
+                    if (this.dailyStats.length === 0) return 0;
+                    return this.dailyStats[this.dailyStats.length - 1]?.dau || 0;
+                },
+                
+                get todayPeak() {
+                    if (this.dailyStats.length === 0) return 0;
+                    return this.dailyStats[this.dailyStats.length - 1]?.peak || 0;
+                },
+                
+                get totalPlayers() {
+                    if (this.dailyStats.length === 0) return 0;
+                    return this.dailyStats[this.dailyStats.length - 1]?.cumulative || 0;
+                },
+                
+                get peakHour() {
+                    if (Object.keys(this.heatmapData).length === 0) return '--';
+                    let maxHour = 0;
+                    let maxCount = 0;
+                    for (const [hour, count] of Object.entries(this.heatmapData)) {
+                        if (count > maxCount) {
+                            maxCount = count;
+                            maxHour = parseInt(hour);
+                        }
+                    }
+                    return maxHour.toString().padStart(2, '0');
+                },
+                
+                get groupedSessions() {
+                    const grouped = {};
+                    for (const session of this.playerSessions) {
+                        if (!grouped[session.date]) {
+                            grouped[session.date] = { date: session.date, sessions: [] };
+                        }
+                        grouped[session.date].sessions.push(session);
+                    }
+                    return Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date));
+                },
+                
+                async init() {
+                    await this.loadAllData();
+                    this.loading = false;
+                    this.$nextTick(() => {
+                        this.renderCharts();
+                    });
+                },
+                
+                async loadAllData() {
+                    await Promise.all([
+                        this.loadDailyStats(),
+                        this.loadHeatmap(),
+                        this.loadPlayers()
+                    ]);
+                },
+                
+                async changePeriod(days) {
+                    this.selectedPeriod = days;
+                    // Destroy existing charts before loading new data
+                    if (this.dauChart) { this.dauChart.destroy(); this.dauChart = null; }
+                    if (this.peakChart) { this.peakChart.destroy(); this.peakChart = null; }
+                    if (this.cumulativeChart) { this.cumulativeChart.destroy(); this.cumulativeChart = null; }
+                    
+                    await this.loadAllData();
+                    
+                    // Re-render charts with new data
+                    this.renderCharts();
+                },
+                
+                async loadDailyStats() {
+                    try {
+                        const days = this.selectedPeriod === 0 ? 365 : this.selectedPeriod;
+                        const res = await fetch(`/api/status/daily-stats?days=${days}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            this.dailyStats = data.data;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load daily stats:', e);
+                    }
+                },
+                
+                async loadHeatmap() {
+                    try {
+                        const days = this.selectedPeriod === 0 ? 365 : Math.min(this.selectedPeriod, 30);
+                        const res = await fetch(`/api/status/hourly-heatmap?days=${days}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            this.heatmapData = data.data;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load heatmap:', e);
+                    }
+                },
+                
+                async loadPlayers() {
+                    try {
+                        const days = this.selectedPeriod === 0 ? 365 : this.selectedPeriod;
+                        const res = await fetch(`/api/status/players?days=${days}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            this.players = data.data;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load players:', e);
+                    }
+                },
+                
+                async loadPlayerSessions() {
+                    if (!this.selectedPlayer) {
+                        this.playerSessions = [];
+                        return;
+                    }
+                    try {
+                        const days = this.selectedPeriod === 0 ? 365 : Math.min(this.selectedPeriod, 30);
+                        const res = await fetch(`/api/status/player-sessions?player=${encodeURIComponent(this.selectedPlayer)}&days=${days}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            this.playerSessions = data.data;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load player sessions:', e);
+                    }
+                },
+                
+                renderCharts() {
+                    const labels = this.dailyStats.map(s => s.date.substring(5)); // MM-DD
+                    const dauData = this.dailyStats.map(s => s.dau);
+                    const peakData = this.dailyStats.map(s => s.peak);
+                    const cumulativeData = this.dailyStats.map(s => s.cumulative);
+                    
+                    const chartOptions = {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#6b7280' }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#6b7280' },
+                                beginAtZero: true
+                            }
+                        }
+                    };
+                    
+                    // DAU Chart
+                    this.dauChart = new Chart(document.getElementById('dauChart'), {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: dauData,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 3,
+                                pointHoverRadius: 6
+                            }]
+                        },
+                        options: chartOptions
+                    });
+                    
+                    // Peak Chart
+                    this.peakChart = new Chart(document.getElementById('peakChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: peakData,
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                                borderColor: '#3b82f6',
+                                borderWidth: 1,
+                                borderRadius: 4
+                            }]
+                        },
+                        options: chartOptions
+                    });
+                    
+                    // Cumulative Chart
+                    this.cumulativeChart = new Chart(document.getElementById('cumulativeChart'), {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: cumulativeData,
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 3,
+                                pointHoverRadius: 6
+                            }]
+                        },
+                        options: chartOptions
+                    });
+                },
+                
+                updateCharts() {
+                    // Create local copies to avoid Alpine reactivity issues
+                    const stats = JSON.parse(JSON.stringify(this.dailyStats));
+                    const labels = stats.map(s => s.date.substring(5));
+                    const dauData = stats.map(s => s.dau);
+                    const peakData = stats.map(s => s.peak);
+                    const cumulativeData = stats.map(s => s.cumulative);
+                    
+                    if (this.dauChart) {
+                        this.dauChart.data.labels = labels;
+                        this.dauChart.data.datasets[0].data = dauData;
+                        this.dauChart.update('none');
+                    }
+                    
+                    if (this.peakChart) {
+                        this.peakChart.data.labels = labels;
+                        this.peakChart.data.datasets[0].data = peakData;
+                        this.peakChart.update('none');
+                    }
+                    
+                    if (this.cumulativeChart) {
+                        this.cumulativeChart.data.labels = labels;
+                        this.cumulativeChart.data.datasets[0].data = cumulativeData;
+                        this.cumulativeChart.update('none');
+                    }
+                },
+                
+                getHeatmapCellStyle(hour) {
+                    const count = this.heatmapData[hour] || 0;
+                    const maxCount = Math.max(...Object.values(this.heatmapData), 1);
+                    const intensity = count / maxCount;
+                    
+                    if (intensity === 0) {
+                        return 'background: rgba(16, 185, 129, 0.05)';
+                    }
+                    
+                    const alpha = 0.2 + (intensity * 0.6);
+                    return `background: rgba(16, 185, 129, ${alpha})`;
+                },
+                
+                getSessionBarStyle(session) {
+                    const joinDate = new Date(session.join);
+                    const joinMinutes = joinDate.getHours() * 60 + joinDate.getMinutes();
+                    
+                    let durationMinutes = session.duration;
+                    if (!durationMinutes && session.leave) {
+                        const leaveDate = new Date(session.leave);
+                        durationMinutes = (leaveDate - joinDate) / (1000 * 60);
+                    }
+                    if (!durationMinutes) {
+                        durationMinutes = 60; // Default 1 hour for unclosed sessions
+                    }
+                    
+                    const totalMinutesInDay = 24 * 60;
+                    const left = (joinMinutes / totalMinutesInDay) * 100;
+                    const width = Math.min((durationMinutes / totalMinutesInDay) * 100, 100 - left);
+                    
+                    return `left: ${left}%; width: ${width}%`;
+                },
+                
+                formatDate(dateStr) {
+                    const date = new Date(dateStr);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

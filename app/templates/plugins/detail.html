@@ -1,0 +1,703 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ plugin_name }} - Plugin Documentation{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div x-data="pluginDetail()" x-init="init()" class="min-h-screen bg-[#050505] text-slate-300 font-sans">
+
+    {% include "components/admin_shell/background_pattern.html" %}
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-30 border-b border-purple-500/20 bg-[#0a0a0a]/80 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-4">
+                    {{ near.back_button('/minecraft/plugins') }}
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                            {% if icon_url %}
+                            <img src="{{ icon_url }}" alt="{{ plugin_name }}" class="w-full h-full object-cover">
+                            {% else %}
+                            <span class="text-lg font-bold text-white">{{ plugin_id[:2].upper() }}</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-lg font-bold text-white tracking-tight">{{ plugin_name }}</h1>
+                                <span class="source-badge source-{{ source }}">{{ source }}</span>
+                            </div>
+                            <p class="text-xs text-slate-500">v{{ version }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    {% if is_admin %}
+                    <span class="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 text-xs font-medium border border-purple-500/30">
+                        Admin
+                    </span>
+                    {% endif %}
+                    {{ near.settings_button() }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap gap-2 mb-6">
+            <button @click="activeTab = 'overview'"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'overview' ? 'active' : 'bg-slate-800/40 text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    Overview
+                </span>
+            </button>
+            <button @click="activeTab = 'commands'"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'commands' ? 'active' : 'bg-slate-800/40 text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                    Commands
+                    <span class="px-1.5 py-0.5 text-xs rounded bg-slate-700" x-text="doc.commands.length"></span>
+                </span>
+            </button>
+            <button @click="activeTab = 'config'; loadConfig()"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'config' ? 'active' : 'bg-slate-800/40 text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    Config
+                </span>
+            </button>
+            <button @click="activeTab = 'settings'"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'settings' ? 'active' : 'bg-slate-800/40 text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                    Key Settings
+                    <span class="px-1.5 py-0.5 text-xs rounded bg-slate-700" x-text="doc.key_settings.length"></span>
+                </span>
+            </button>
+            <button @click="activeTab = 'comments'"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'comments' ? 'active' : 'bg-slate-800/40 text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                    Comments
+                    <span class="px-1.5 py-0.5 text-xs rounded bg-slate-700" x-text="doc.comments.length"></span>
+                </span>
+            </button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div x-show="activeTab === 'overview'" x-transition class="space-y-6">
+            <div class="glass-card rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-white">Summary</h2>
+                    {% if is_admin %}
+                    <button @click="editingSummary = !editingSummary"
+                        class="px-3 py-1.5 text-sm rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 transition-colors">
+                        <span x-text="editingSummary ? 'Cancel' : 'Edit'"></span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <template x-if="!editingSummary">
+                    <div>
+                        <p class="text-slate-300 mb-4" x-text="doc.summary || doc.summary_en || 'No summary yet'"></p>
+                        <div class="prose prose-invert prose-sm max-w-none">
+                            <p class="text-slate-400 whitespace-pre-wrap" x-text="doc.description || doc.description_en || 'No description available.'"></p>
+                        </div>
+                    </div>
+                </template>
+
+                {% if is_admin %}
+                <template x-if="editingSummary">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Summary</label>
+                            <input type="text" x-model="editForm.summary"
+                                class="input-field w-full rounded-lg py-2.5 px-4 text-sm text-white"
+                                placeholder="Brief summary of the plugin">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</label>
+                            <textarea x-model="editForm.description" rows="6"
+                                class="input-field w-full rounded-lg py-2.5 px-4 text-sm text-white resize-none"
+                                placeholder="Detailed description..."></textarea>
+                        </div>
+                        <button @click="saveDoc()" :disabled="saving"
+                            class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50">
+                            <span x-text="saving ? 'Saving...' : 'Save Changes'"></span>
+                        </button>
+                    </div>
+                </template>
+                {% endif %}
+
+                <div class="mt-6 pt-4 border-t border-slate-700/50 text-xs text-slate-500">
+                    <span x-show="doc.updated_at">
+                        Last updated: <span x-text="formatDate(doc.updated_at)"></span>
+                        <span x-show="doc.updated_by_name"> by <span x-text="doc.updated_by_name"></span></span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commands Tab -->
+        <div x-show="activeTab === 'commands'" x-transition class="space-y-6">
+            <div class="glass-card rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-white">Commands</h2>
+                    {% if is_admin %}
+                    <button @click="showAddCommand = !showAddCommand"
+                        class="btn-secondary px-3 py-1.5 text-sm rounded-lg text-white">
+                        <span class="flex items-center gap-1">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Add Command
+                        </span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if is_admin %}
+                <!-- Add Command Form -->
+                <div x-show="showAddCommand" x-transition class="mb-6 p-4 rounded-lg bg-slate-800/50 border border-slate-700/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Command</label>
+                            <input type="text" x-model="newCommand.command"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="/command">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Permission</label>
+                            <input type="text" x-model="newCommand.permission"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="plugin.permission">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</label>
+                            <input type="text" x-model="newCommand.description"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="What does this command do?">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Usage</label>
+                            <input type="text" x-model="newCommand.usage"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="/command <arg1> [optional]">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button @click="addCommand()" :disabled="!newCommand.command || saving"
+                            class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50">
+                            Add
+                        </button>
+                        <button @click="showAddCommand = false; resetNewCommand()"
+                            class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-sm transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Commands Table -->
+                <template x-if="doc.commands.length === 0">
+                    <div class="text-center py-12 text-slate-500">
+                        <i data-lucide="terminal" class="w-12 h-12 mx-auto mb-4 opacity-30"></i>
+                        <p>No commands documented yet</p>
+                    </div>
+                </template>
+
+                <div class="space-y-3">
+                    <template x-for="cmd in doc.commands" :key="cmd.id">
+                        <div class="p-4 rounded-lg bg-slate-800/30 border border-slate-700/30 hover:border-slate-600/50 transition-colors">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <code class="text-sm font-mono text-purple-400 bg-purple-500/10 px-2 py-1 rounded" x-text="cmd.command"></code>
+                                        <span x-show="cmd.permission" class="text-xs text-slate-500" x-text="cmd.permission"></span>
+                                    </div>
+                                    <p class="text-sm text-slate-300 mb-2" x-text="cmd.description"></p>
+                                    <p x-show="cmd.usage" class="text-xs text-slate-500 font-mono" x-text="'Usage: ' + cmd.usage"></p>
+                                </div>
+                                {% if is_admin %}
+                                <button @click="deleteCommand(cmd.id)"
+                                    class="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div x-show="activeTab === 'config'" x-transition class="space-y-6">
+            <div class="glass-card rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-white">Configuration Files</h2>
+                    <div class="flex items-center gap-2">
+                        <select x-model="selectedConfig" @change="loadConfig()"
+                            class="input-field rounded-lg py-2 px-3 text-sm text-white">
+                            <template x-for="file in configFiles" :key="file.name">
+                                <option :value="file.name" x-text="file.name"></option>
+                            </template>
+                        </select>
+                        <button @click="loadConfig()" :disabled="loadingConfig"
+                            class="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 transition-colors">
+                            <i data-lucide="refresh-cw" class="w-4 h-4" :class="loadingConfig ? 'animate-spin' : ''"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <template x-if="loadingConfig">
+                    <div class="flex items-center justify-center py-12">
+                        <i data-lucide="loader-2" class="w-8 h-8 text-purple-400 animate-spin"></i>
+                    </div>
+                </template>
+
+                <template x-if="!loadingConfig && configError">
+                    <div class="text-center py-12 text-slate-500">
+                        <i data-lucide="file-x" class="w-12 h-12 mx-auto mb-4 opacity-30"></i>
+                        <p x-text="configError"></p>
+                    </div>
+                </template>
+
+                <template x-if="!loadingConfig && !configError && configContent">
+                    <div class="config-viewer">
+                        <div class="mb-3 flex items-center justify-between text-xs text-slate-500">
+                            <span x-text="selectedConfig"></span>
+                            <span x-text="formatBytes(configSize)"></span>
+                        </div>
+                        <pre class="language-yaml"><code x-text="configContent"></code></pre>
+                    </div>
+                </template>
+
+                <template x-if="!loadingConfig && !configError && !configContent && configFiles.length === 0">
+                    <div class="text-center py-12 text-slate-500">
+                        <i data-lucide="file-question" class="w-12 h-12 mx-auto mb-4 opacity-30"></i>
+                        <p>No config files found for this plugin</p>
+                    </div>
+                </template>
+
+                <div class="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300">
+                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                    Config files are read-only. Edit via SFTP or file manager.
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Settings Tab -->
+        <div x-show="activeTab === 'settings'" x-transition class="space-y-6">
+            <div class="glass-card rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-white">Key Settings</h2>
+                    {% if is_admin %}
+                    <button @click="showAddSetting = !showAddSetting"
+                        class="btn-secondary px-3 py-1.5 text-sm rounded-lg text-white">
+                        <span class="flex items-center gap-1">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Add Setting
+                        </span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if is_admin %}
+                <!-- Add Setting Form -->
+                <div x-show="showAddSetting" x-transition class="mb-6 p-4 rounded-lg bg-slate-800/50 border border-slate-700/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Config Path</label>
+                            <input type="text" x-model="newSetting.path"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="settings.example-key">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Current Value</label>
+                            <input type="text" x-model="newSetting.current_value"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="true">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</label>
+                            <input type="text" x-model="newSetting.description"
+                                class="input-field w-full rounded-lg py-2 px-3 text-sm text-white"
+                                placeholder="What does this setting do?">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button @click="addSetting()" :disabled="!newSetting.path || saving"
+                            class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50">
+                            Add
+                        </button>
+                        <button @click="showAddSetting = false; resetNewSetting()"
+                            class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-sm transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <template x-if="doc.key_settings.length === 0">
+                    <div class="text-center py-12 text-slate-500">
+                        <i data-lucide="sliders" class="w-12 h-12 mx-auto mb-4 opacity-30"></i>
+                        <p>No key settings highlighted yet</p>
+                    </div>
+                </template>
+
+                <div class="space-y-3">
+                    <template x-for="setting in doc.key_settings" :key="setting.id">
+                        <div class="p-4 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <code class="text-sm font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded" x-text="setting.path"></code>
+                                        <span x-show="setting.current_value" class="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded" x-text="'= ' + setting.current_value"></span>
+                                    </div>
+                                    <p class="text-sm text-slate-300" x-text="setting.description"></p>
+                                </div>
+                                {% if is_admin %}
+                                <button @click="deleteSetting(setting.id)"
+                                    class="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Tab -->
+        <div x-show="activeTab === 'comments'" x-transition class="space-y-6">
+            <div class="glass-card rounded-xl p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Discussion</h2>
+
+                <!-- Add Comment Form -->
+                <div class="mb-6">
+                    <textarea x-model="newComment" rows="3" maxlength="2000"
+                        class="input-field w-full rounded-lg py-3 px-4 text-sm text-white resize-none"
+                        placeholder="Add a comment... (notes, tips, issues, etc.)"></textarea>
+                    <div class="flex items-center justify-between mt-2">
+                        <span class="text-xs text-slate-500" x-text="newComment.length + '/2000'"></span>
+                        <button @click="addComment()" :disabled="!newComment.trim() || saving"
+                            class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50">
+                            Post Comment
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Comments List -->
+                <template x-if="doc.comments.length === 0">
+                    <div class="text-center py-12 text-slate-500">
+                        <i data-lucide="message-square" class="w-12 h-12 mx-auto mb-4 opacity-30"></i>
+                        <p>No comments yet. Be the first to comment!</p>
+                    </div>
+                </template>
+
+                <div class="space-y-4">
+                    <template x-for="comment in doc.comments.slice().reverse()" :key="comment.id">
+                        <div class="comment-card p-4 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-white" x-text="(comment.author_name || 'U')[0].toUpperCase()"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-sm font-medium text-white" x-text="comment.author_name || 'User'"></span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-slate-500" x-text="formatDate(comment.timestamp)"></span>
+                                            <template x-if="canDeleteComment(comment)">
+                                                <button @click="deleteComment(comment.id)"
+                                                    class="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors">
+                                                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-slate-300 whitespace-pre-wrap" x-text="comment.text"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div x-show="toast.show" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-4"
+            class="fixed bottom-6 right-6 px-5 py-4 rounded-xl border shadow-2xl z-50 backdrop-blur-xl"
+            :class="toast.type === 'success'
+                ? 'bg-[#0a0a0a]/90 border-emerald-500/30 text-emerald-400'
+                : 'bg-[#0a0a0a]/90 border-red-500/30 text-red-400'">
+            <span x-text="toast.message" class="text-sm font-medium"></span>
+        </div>
+
+    </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+
+<script>
+function pluginDetail() {
+    return {
+        pluginId: {{ plugin_id | tojson }},
+        isAdmin: {{ 'true' if is_admin else 'false' }},
+        userEmail: {{ (user_info.email if user_info and user_info.email else '') | tojson }},
+        activeTab: 'overview',
+
+        doc: {{ doc | tojson }},
+
+        // UI state
+        editingSummary: false,
+        showAddCommand: false,
+        showAddSetting: false,
+        saving: false,
+        toast: { show: false, message: '', type: 'info' },
+
+        // Edit forms
+        editForm: {
+            summary: {{ (doc.summary or doc.summary_en or '') | tojson }},
+            description: {{ (doc.description or doc.description_en or '') | tojson }}
+        },
+
+        newCommand: { command: '', description: '', permission: '', usage: '' },
+        newSetting: { path: '', description: '', current_value: '' },
+        newComment: '',
+
+        // Config viewer
+        configFiles: {{ config_files | tojson }},
+        selectedConfig: {{ (config_files[0].name if config_files else "config.yml") | tojson }},
+        configContent: '',
+        configSize: 0,
+        configError: '',
+        loadingConfig: false,
+
+        init() {
+            lucide.createIcons();
+        },
+
+        async saveDoc() {
+            this.saving = true;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/docs/${this.pluginId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.editForm)
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc = { ...this.doc, ...data.doc };
+                    this.editingSummary = false;
+                    this.showToast('Documentation updated', 'success');
+                } else {
+                    this.showToast(data.error || 'Failed to save', 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to save', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async addCommand() {
+            if (!this.newCommand.command) return;
+            this.saving = true;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/commands`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newCommand)
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc.commands.push(data.command);
+                    this.resetNewCommand();
+                    this.showAddCommand = false;
+                    this.showToast('Command added', 'success');
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    this.showToast(data.error || 'Failed to add command', 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to add command', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async deleteCommand(cmdId) {
+            if (!confirm('Delete this command?')) return;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/commands/${cmdId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc.commands = this.doc.commands.filter(c => c.id !== cmdId);
+                    this.showToast('Command deleted', 'success');
+                }
+            } catch (e) {
+                this.showToast('Failed to delete', 'error');
+            }
+        },
+
+        resetNewCommand() {
+            this.newCommand = { command: '', description: '', permission: '', usage: '' };
+        },
+
+        async addSetting() {
+            if (!this.newSetting.path) return;
+            this.saving = true;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newSetting)
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc.key_settings.push(data.setting);
+                    this.resetNewSetting();
+                    this.showAddSetting = false;
+                    this.showToast('Setting added', 'success');
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    this.showToast(data.error || 'Failed to add setting', 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to add setting', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async deleteSetting(settingId) {
+            if (!confirm('Delete this setting?')) return;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/settings/${settingId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc.key_settings = this.doc.key_settings.filter(s => s.id !== settingId);
+                    this.showToast('Setting deleted', 'success');
+                }
+            } catch (e) {
+                this.showToast('Failed to delete', 'error');
+            }
+        },
+
+        resetNewSetting() {
+            this.newSetting = { path: '', description: '', current_value: '' };
+        },
+
+        async addComment() {
+            if (!this.newComment.trim()) return;
+            this.saving = true;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: this.newComment })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc.comments.push(data.comment);
+                    this.newComment = '';
+                    this.showToast('Comment posted', 'success');
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    this.showToast(data.error || 'Failed to post comment', 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to post comment', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        canDeleteComment(comment) {
+            return this.isAdmin || comment.author === this.userEmail;
+        },
+
+        async deleteComment(commentId) {
+            if (!confirm('Delete this comment?')) return;
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/comments/${commentId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.doc.comments = this.doc.comments.filter(c => c.id !== commentId);
+                    this.showToast('Comment deleted', 'success');
+                }
+            } catch (e) {
+                this.showToast('Failed to delete', 'error');
+            }
+        },
+
+        async loadConfig() {
+            if (!this.selectedConfig) return;
+            this.loadingConfig = true;
+            this.configError = '';
+            this.configContent = '';
+
+            try {
+                const res = await fetch(`/minecraft/plugins/api/${this.pluginId}/config?filename=${encodeURIComponent(this.selectedConfig)}`);
+                const data = await res.json();
+
+                if (data.status === 'ok') {
+                    this.configContent = data.content;
+                    this.configSize = data.size;
+                    this.$nextTick(() => {
+                        if (typeof Prism !== 'undefined') {
+                            Prism.highlightAll();
+                        }
+                    });
+                } else {
+                    this.configError = data.error || 'Failed to load config';
+                }
+            } catch (e) {
+                this.configError = 'Failed to load config file';
+            } finally {
+                this.loadingConfig = false;
+                this.$nextTick(() => lucide.createIcons());
+            }
+        },
+
+        formatDate(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        },
+
+        formatBytes(bytes) {
+            if (!bytes) return '';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        },
+
+        showToast(message, type = 'info') {
+            this.toast = { show: true, message, type };
+            setTimeout(() => this.toast.show = false, 3000);
+        }
+    }
+}
+</script>
+{% endblock %}

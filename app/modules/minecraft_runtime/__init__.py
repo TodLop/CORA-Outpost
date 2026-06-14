@@ -1,0 +1,2 @@
+"""Minecraft runtime lifecycle module."""
+

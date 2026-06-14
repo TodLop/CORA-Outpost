@@ -1,0 +1,3262 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Staff Panel - Minecraft Server{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+{% import "components/admin_shell/operation_card.html" as op_card %}
+
+{% block content %}
+<div x-data="staffPanel()" x-init="init()"
+    class="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-purple-500/30">
+
+    {% include "components/admin_shell/background_pattern.html" %}
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-30 border-b border-purple-500/20 bg-[#0a0a0a]/80 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between gap-3 py-3 sm:h-16 sm:py-0">
+                <div class="flex min-w-0 items-center gap-3 sm:gap-4">
+                    {{ near.back_button('/') }}
+                    <div class="flex items-center gap-3">
+                        <div class="staff-badge px-3 py-1.5 rounded-lg">
+                            <span class="text-xs font-bold text-white tracking-wider">STAFF</span>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-white tracking-tight">
+                                Server Control Panel
+                            </h1>
+                            <p class="text-xs text-slate-500">Limited Access Mode</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:gap-4">
+                    <a href="/minecraft/admin" title="Dashboard"
+                        class="group flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-all">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-purple-400 group-hover:text-purple-300"></i>
+                        <span class="hidden sm:inline text-sm font-medium text-purple-300 group-hover:text-purple-200">Dashboard</span>
+                    </a>
+                    <a href="/minecraft/map" title="Live Map" x-show="hasPermission('map:view') && bluemapAvailable"
+                        class="group flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 transition-all">
+                        <i data-lucide="map" class="w-4 h-4 text-emerald-300 group-hover:text-emerald-200"></i>
+                        <span class="hidden sm:inline text-sm font-medium text-emerald-200 group-hover:text-emerald-100">Live Map</span>
+                    </a>
+                    <a href="/minecraft/plugins" title="Plugin Docs" x-show="hasPermission('plugins:view')" x-data="{ unreadCount: 0 }" x-init="fetch('/minecraft/plugins/api/notifications/unread').then(r => r.json()).then(d => unreadCount = d.count || 0).catch(() => {})"
+                        class="relative group flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-all">
+                        <i data-lucide="file-text" class="w-4 h-4 text-purple-400 group-hover:text-purple-300"></i>
+                        <span class="hidden sm:inline text-sm font-medium text-purple-300 group-hover:text-purple-200">Plugin Docs</span>
+                        <span x-show="unreadCount > 0" x-text="unreadCount < 10 ? unreadCount : '9+'"
+                            class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"></span>
+                    </a>
+                    <a href="/minecraft/backend-docs" title="Operations Docs" x-show="hasPermission('ops:backend_docs:view')"
+                        class="group flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 transition-all">
+                        <i data-lucide="book-open-check" class="w-4 h-4 text-amber-300 group-hover:text-amber-200"></i>
+                        <span class="hidden sm:inline text-sm font-medium text-amber-200 group-hover:text-amber-100">Operations</span>
+                    </a>
+                    {{ near.settings_button('Preferences') }}
+                    <div
+                        class="hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl bg-[#0a0a0a] border border-slate-700/50">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                            <span class="text-sm font-bold text-white">{{ (user_info.name or user_info.email)[0] | upper
+                                }}</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-white">{{ user_info.name or 'Staff Member' }}</span>
+                            <span class="text-xs text-slate-500">{{ user_info.email }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Server Status Card -->
+        <section class="glass-card glass-card-hover rounded-2xl overflow-hidden">
+            <div class="p-6 sm:p-8">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+
+                    <!-- Status Display -->
+                    <div class="flex items-center gap-5">
+                        <div class="relative">
+                            <div
+                                class="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0a0a0a] to-[#0a0a0a] border border-slate-700/50 flex items-center justify-center shadow-xl">
+                                <i data-lucide="server" class="w-10 h-10"
+                                    :class="serverRunning ? 'text-emerald-400' : 'text-slate-600'"></i>
+                            </div>
+                            <div class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border-3 border-[#0a0a0a] status-dot"
+                                :class="serverRunning ? 'bg-emerald-500 online' : 'bg-red-500'"></div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <h2 class="text-2xl font-bold text-white">Minecraft Server</h2>
+                                <span class="px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full"
+                                    :class="serverRunning ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30' : 'bg-red-500/15 text-red-400 ring-1 ring-red-500/30'"
+                                    x-text="serverRunning ? 'Online' : 'Offline'">
+                                </span>
+                            </div>
+                            <template x-if="activeProfile">
+                                <div class="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/10 px-3 py-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-xs uppercase tracking-wider text-purple-200">Active Profile</span>
+                                        <span class="font-semibold text-white" x-text="activeProfile.name"></span>
+                                        <span class="font-mono text-xs text-slate-400" x-text="activeProfile.id"></span>
+                                        <span class="rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-200">ACTIVE</span>
+                                        <span x-show="activeProfile.kind === 'sample'"
+                                            class="rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300">SAMPLE</span>
+                                        <span x-show="activeProfile.readonly"
+                                            class="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-200">READONLY</span>
+                                        <span x-show="!activeProfile.operations_enabled"
+                                            class="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-200">OPS OFF</span>
+                                        <span x-show="!activeProfile.rcon_enabled"
+                                            class="rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300">RCON OFF</span>
+                                    </div>
+                                    <p x-show="activeProfileOperationsBlocked()" class="mt-1 text-xs text-amber-200">
+                                        Staff operations may be blocked by active profile policy.
+                                    </p>
+                                    <p x-show="activeProfileRconBlocked() && !activeProfileOperationsBlocked()" class="mt-1 text-xs text-slate-400">
+                                        RCON-backed staff actions may be blocked for this profile.
+                                    </p>
+                                </div>
+                            </template>
+                            <div class="flex items-center gap-5 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-[#0a0a0a] flex items-center justify-center">
+                                        <i data-lucide="users" class="w-4 h-4"
+                                            :class="serverRunning ? 'text-purple-400' : 'text-slate-600'"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-slate-500">Players</p>
+                                        <p class="font-semibold text-white"
+                                            x-text="serverRunning ? `${playersOnline} / ${maxPlayers}` : '-- / --'"></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-[#0a0a0a] flex items-center justify-center">
+                                        <i data-lucide="cpu" class="w-4 h-4 text-slate-600"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-slate-500">Version</p>
+                                        <p class="font-semibold text-white">Paper 1.21.11</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                        <button @click="startServer()" :disabled="serverRunning || loading || activeProfileOperationsBlocked()"
+                            :title="activeProfileOperationsBlocked() ? 'Active profile blocks server operations' : 'Start server'"
+                            x-show="hasPermission('server:start')"
+                            class="flex-1 lg:flex-none btn-primary px-6 py-3 min-h-[44px] rounded-xl text-white font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <div class="flex items-center justify-center gap-2">
+                                <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                                <span x-text="loading && !serverRunning ? 'Starting...' : 'Start'"></span>
+                            </div>
+                        </button>
+
+                        <button @click="restartServer()" :disabled="loading || activeProfileOperationsBlocked()"
+                            :title="activeProfileOperationsBlocked() ? 'Active profile blocks server operations' : 'Restart server'"
+                            x-show="hasPermission('server:restart')"
+                            class="flex-1 lg:flex-none btn-warning px-6 py-3 min-h-[44px] rounded-xl text-white font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <div class="flex items-center justify-center gap-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4" :class="loading ? 'animate-spin' : ''"></i>
+                                <span>Restart</span>
+                            </div>
+                        </button>
+
+                        <button @click="refreshStatus()"
+                            class="w-full sm:w-auto p-3 min-h-[44px] rounded-xl bg-[#0a0a0a] hover:bg-slate-700 text-slate-300 border border-slate-700/50 transition-all active:scale-95 flex items-center justify-center">
+                            <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div
+                class="bg-[#0a0a0a]/60 border-t border-slate-800/50 px-6 py-3 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-wrap items-center gap-4">
+                    <span class="flex items-center gap-1.5">
+                        <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                        {{ minecraft_server_address|default('minecraft.example.com') }}
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <i data-lucide="hash" class="w-3.5 h-3.5"></i>
+                        Port 25565
+                    </span>
+                </div>
+                <span class="text-slate-600">Auto-refresh: 5s</span>
+            </div>
+        </section>
+
+        <!-- Quick Spectator Toggle -->
+        <section x-show="hasPermission('spectator:quick_toggle')" class="glass-card glass-card-hover rounded-2xl p-6">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <h3 class="section-title text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="eye" class="w-5 h-5 text-cyan-400"></i>
+                        Quick Spectator Toggle
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-1">
+                        Bound MC ID:
+                        <span class="font-mono text-slate-300" x-text="staffMinecraftName || 'NOT CONFIGURED'"></span>
+                    </p>
+                    <p x-show="!hasHardcodedMinecraftName" class="text-xs text-amber-300 mt-2">
+                        Security policy active: owner must hardcode your Minecraft ID in config to enable this action.
+                    </p>
+                    <p x-show="hasHardcodedMinecraftName && serverRunning && !staffMinecraftOnline" class="text-xs text-amber-300 mt-2">
+                        Your bound Minecraft account is currently offline. Join the server to use these controls.
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button @click="switchMyGamemode('spectator')"
+                        :disabled="gamemodeSwitching || !serverRunning || !hasHardcodedMinecraftName || !staffMinecraftOnline || activeProfileRconBlocked()"
+                        :title="activeProfileRconBlocked() ? 'Active profile blocks RCON-backed staff actions' : 'Enter spectator mode'"
+                        class="btn-secondary px-5 py-3 rounded-xl text-white font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                        <span x-show="!gamemodeSwitching" class="flex items-center gap-2">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            Enter Spectator
+                        </span>
+                        <span x-show="gamemodeSwitching" class="flex items-center gap-2">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                            Switching...
+                        </span>
+                    </button>
+                    <button @click="switchMyGamemode('survival')"
+                        :disabled="gamemodeSwitching || !serverRunning || !hasHardcodedMinecraftName || !staffMinecraftOnline || activeProfileRconBlocked()"
+                        :title="activeProfileRconBlocked() ? 'Active profile blocks RCON-backed staff actions' : 'Return to survival mode'"
+                        class="btn-primary px-5 py-3 rounded-xl text-white font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i>
+                            Back to Survival
+                        </span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-3">
+                    <button @click="toggleMyVanish()"
+                        :disabled="vanishToggling || !serverRunning || !hasHardcodedMinecraftName || !staffMinecraftOnline || activeProfileRconBlocked()"
+                        :title="activeProfileRconBlocked() ? 'Active profile blocks RCON-backed staff actions' : 'Toggle vanish'"
+                        class="btn-secondary px-5 py-3 rounded-xl text-white font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                        <span x-show="!vanishToggling" class="flex items-center justify-center gap-2">
+                            <i data-lucide="ghost" class="w-4 h-4"></i>
+                            Toggle Vanish
+                        </span>
+                        <span x-show="vanishToggling" class="flex items-center justify-center gap-2">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                            Applying...
+                        </span>
+                    </button>
+                    <div class="xl:col-span-2 flex flex-col sm:flex-row gap-2">
+                        <select x-model="quickTpTarget"
+                            :disabled="tpInProgress || !serverRunning || !hasHardcodedMinecraftName || !staffMinecraftOnline || quickTpPlayers.length === 0 || activeProfileRconBlocked()"
+                            class="input-field flex-1 px-4 py-3 rounded-xl text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                            <option value="">Select online player to follow</option>
+                            <template x-for="player in quickTpPlayers" :key="player">
+                                <option :value="extractUsername(player)" x-text="extractUsername(player)"></option>
+                            </template>
+                        </select>
+                        <button @click="tpToPlayerInSpectator()"
+                            :disabled="tpInProgress || !serverRunning || !hasHardcodedMinecraftName || !staffMinecraftOnline || !quickTpTarget || activeProfileRconBlocked()"
+                            :title="activeProfileRconBlocked() ? 'Active profile blocks RCON-backed staff actions' : 'Teleport in spectator'"
+                            class="btn-primary px-5 py-3 rounded-xl text-white font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <span x-show="!tpInProgress" class="flex items-center gap-2">
+                                <i data-lucide="navigation" class="w-4 h-4"></i>
+                                TP in Spectator
+                            </span>
+                            <span x-show="tpInProgress" class="flex items-center gap-2">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                Teleporting...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500">
+                    Vanish is an independent toggle. TP works only while you are currently in spectator mode.
+                </p>
+            </div>
+        </section>
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap gap-2" x-show="hasAnyPermission()">
+            <button @click="activeTab = 'players'" x-show="hasModule('players')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'players' ? 'active' : 'bg-[#0a0a0a] text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    Players
+                </span>
+            </button>
+            <button @click="activeTab = 'moderation'" x-show="hasModule('moderation')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'moderation' ? 'active' : 'bg-[#0a0a0a] text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="shield" class="w-4 h-4"></i>
+                    Moderation
+                </span>
+            </button>
+            <button @click="activeTab = 'logs'" x-show="hasModule('logs')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'logs' ? 'active' : 'bg-[#0a0a0a] text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    Logs
+                </span>
+            </button>
+            <button @click="activeTab = 'whitelist'" x-show="hasModule('whitelist')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'whitelist' ? 'active' : 'bg-[#0a0a0a] text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="list-checks" class="w-4 h-4"></i>
+                    Whitelist
+                </span>
+            </button>
+            <button @click="activeTab = 'lookup'" x-show="hasModule('lookup')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'lookup' ? 'active' : 'bg-[#0a0a0a] text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                    CoreProtect
+                </span>
+            </button>
+            <button @click="activeTab = 'warnings'" x-show="hasModule('warnings')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-slate-700/50 hover:border-slate-600 transition-all"
+                :class="activeTab === 'warnings' ? 'active' : 'bg-[#0a0a0a] text-slate-400'">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                    Warnings
+                </span>
+            </button>
+            <!-- Investigation Page Link -->
+            <a href="/minecraft/staff/investigation" x-show="hasModule('investigation')"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-purple-500/50 bg-purple-500/10 text-purple-300 hover:border-purple-500/70 hover:bg-purple-500/20 transition-all">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    Investigation
+                </span>
+            </a>
+        </div>
+
+        <!-- Players Tab -->
+        <div x-show="activeTab === 'players'" x-transition>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Online Players -->
+                <section class="lg:col-span-2 glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="section-title text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="users" class="w-5 h-5 text-purple-400"></i>
+                            Online Players
+                        </h3>
+                        <span
+                            class="px-3 py-1.5 rounded-lg bg-[#0a0a0a] text-xs font-medium text-slate-400 ring-1 ring-slate-700/50"
+                            x-text="players.length + ' online'"></span>
+                    </div>
+
+                    <div class="min-h-[220px]">
+                        <template x-if="!serverRunning">
+                            <div class="h-full flex flex-col items-center justify-center text-slate-600 py-12">
+                                <div class="w-16 h-16 rounded-2xl bg-[#0a0a0a] flex items-center justify-center mb-4">
+                                    <i data-lucide="power-off" class="w-8 h-8 opacity-40"></i>
+                                </div>
+                                <p class="text-sm font-medium">Server is offline</p>
+                                <p class="text-xs text-slate-700 mt-1">Start the server to see players</p>
+                            </div>
+                        </template>
+
+                        <template x-if="serverRunning && players.length === 0">
+                            <div class="h-full flex flex-col items-center justify-center text-slate-600 py-12">
+                                <div class="w-16 h-16 rounded-2xl bg-[#0a0a0a] flex items-center justify-center mb-4">
+                                    <i data-lucide="user-x" class="w-8 h-8 opacity-40"></i>
+                                </div>
+                                <p class="text-sm font-medium">No players online</p>
+                                <p class="text-xs text-slate-700 mt-1">Waiting for players to join</p>
+                            </div>
+                        </template>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-show="serverRunning && players.length > 0">
+                            <template x-for="player in players" :key="player">
+                                <div
+                                    class="player-card group flex items-center gap-3 p-3 rounded-xl bg-[#0a0a0a] border border-slate-700/30 cursor-default">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center overflow-hidden ring-2 ring-slate-600/30">
+                                        <img :src="`https://mc-heads.net/avatar/${encodeURIComponent(extractUsername(player))}/40`"
+                                            class="w-full h-full object-cover"
+                                            style="image-rendering: pixelated;"
+                                            :alt="extractUsername(player)"
+                                            data-url-index="0"
+                                            @error="loadAvatarWithRetry($event.target, player)">
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-semibold text-white truncate" x-text="extractUsername(player)"></p>
+                                        <p class="text-xs text-slate-500">Online</p>
+                                    </div>
+                                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                        <button x-show="hasPermission('moderation:kick')" @click="kickPlayer(extractUsername(player))"
+                                            class="p-2 rounded-lg hover:bg-amber-500/20 text-slate-500 hover:text-amber-400 transition-all"
+                                            title="Kick">
+                                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                                        </button>
+                                        <button x-show="hasPermission('warnings:issue')" @click="openWarnModal(extractUsername(player))"
+                                            class="p-2 rounded-lg hover:bg-yellow-500/20 text-slate-500 hover:text-yellow-400 transition-all"
+                                            title="Warn">
+                                            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                        </button>
+                                        <button x-show="hasPermission('moderation:tempban')" @click="openBanModal(extractUsername(player))"
+                                            class="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
+                                            title="Temp Ban">
+                                            <i data-lucide="gavel" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Broadcast -->
+                <section x-show="hasPermission('moderation:broadcast')" class="glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                            <i data-lucide="megaphone" class="w-5 h-5 text-purple-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Broadcast</h3>
+                            <p class="text-xs text-slate-500">Send server announcement</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Message (max 200 chars)
+                            </label>
+                            <textarea x-model="broadcastMessage" rows="3" maxlength="200"
+                                class="input-field w-full rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none resize-none"
+                                placeholder="Enter your announcement..."></textarea>
+                            <p class="text-xs text-slate-600 mt-1" x-text="`${broadcastMessage.length}/200`"></p>
+                        </div>
+
+                        <button @click="sendBroadcast()" :disabled="!broadcastMessage.trim() || broadcasting || !serverRunning"
+                            class="btn-secondary w-full py-3 rounded-xl text-white font-bold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <span x-show="!broadcasting" class="flex items-center justify-center gap-2">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                                Send Broadcast
+                            </span>
+                            <span x-show="broadcasting" class="flex items-center justify-center gap-2">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                Sending...
+                            </span>
+                        </button>
+
+                        <div class="flex items-center gap-2 p-3 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                            <i data-lucide="clock" class="w-4 h-4 text-slate-500 flex-shrink-0"></i>
+                            <p class="text-xs text-slate-500">
+                                1 minute cooldown between broadcasts.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Moderation Tab (Ban/Warn Forms) -->
+        <div x-show="activeTab === 'moderation'" x-transition>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Temp Ban Form -->
+                <section x-show="hasPermission('moderation:tempban')" class="glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center">
+                            <i data-lucide="gavel" class="w-5 h-5 text-red-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Temp Ban</h3>
+                            <p class="text-xs text-slate-500">Temporarily ban a player</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Player Name
+                            </label>
+                            <div class="relative">
+                                <i data-lucide="user"
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600"></i>
+                                <input type="text" x-model="banForm.player"
+                                    class="input-field w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="Enter username">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Duration
+                            </label>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <template x-for="time in ['1h', '6h', '24h', '7d']">
+                                    <button @click="banForm.duration = time"
+                                        class="px-3 py-2.5 rounded-lg text-sm font-medium border transition-all"
+                                        :class="banForm.duration === time
+                                            ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                                            : 'bg-[#0a0a0a] border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'">
+                                        <span x-text="time"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Reason
+                            </label>
+                            <textarea x-model="banForm.reason" rows="2"
+                                class="input-field w-full rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none resize-none"
+                                placeholder="Reason for the ban..."></textarea>
+                        </div>
+
+                        <button @click="tempbanPlayer()" :disabled="!banForm.player || banning"
+                            class="btn-danger w-full py-3 rounded-xl text-white font-bold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <span x-show="!banning" class="flex items-center justify-center gap-2">
+                                <i data-lucide="gavel" class="w-4 h-4"></i>
+                                Execute Ban
+                            </span>
+                            <span x-show="banning" class="flex items-center justify-center gap-2">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                Processing...
+                            </span>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Warn Form -->
+                <section x-show="hasPermission('warnings:issue')" class="glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-yellow-500/15 flex items-center justify-center">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Issue Warning</h3>
+                            <p class="text-xs text-slate-500">Warn a player with tracking</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Player Name
+                            </label>
+                            <div class="relative">
+                                <i data-lucide="user"
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600"></i>
+                                <input type="text" x-model="warnForm.player"
+                                    class="input-field w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="Enter username">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Warning Reason
+                            </label>
+                            <textarea x-model="warnForm.reason" rows="3"
+                                class="input-field w-full rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none resize-none"
+                                placeholder="Describe the violation..."></textarea>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" x-model="warnForm.notify" id="notifyPlayer"
+                                class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-purple-500/20">
+                            <label for="notifyPlayer" class="text-sm text-slate-400">Notify player in-game</label>
+                        </div>
+
+                        <button @click="warnPlayer()" :disabled="!warnForm.player || !warnForm.reason || warning"
+                            class="btn-warning w-full py-3 rounded-xl text-white font-bold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <span x-show="!warning" class="flex items-center justify-center gap-2">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Issue Warning
+                            </span>
+                            <span x-show="warning" class="flex items-center justify-center gap-2">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                Processing...
+                            </span>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <div class="mt-6 flex items-center gap-2 p-4 rounded-xl bg-[#0a0a0a] border border-slate-700/30">
+                <i data-lucide="shield-check" class="w-5 h-5 text-purple-400 flex-shrink-0"></i>
+                <p class="text-sm text-slate-500">
+                    Protected players cannot be banned or warned. All moderation actions are logged for audit.
+                </p>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div x-show="activeTab === 'logs'" x-transition>
+            <section class="glass-card glass-card-hover rounded-2xl overflow-hidden">
+                <div class="p-6 border-b border-slate-800/50">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <h3 class="section-title text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-5 h-5 text-purple-400"></i>
+                            Server Logs
+                        </h3>
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <div class="relative flex-1 sm:flex-none">
+                                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600"></i>
+                                <input type="text" x-model="logSearch" @keyup.enter="fetchLogs()"
+                                    class="input-field w-full sm:w-48 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="Search player...">
+                            </div>
+                            <button @click="fetchLogs()" :disabled="loadingLogs"
+                                class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 border border-slate-600/50 transition-all">
+                                <i data-lucide="refresh-cw" class="w-4 h-4" :class="loadingLogs ? 'animate-spin' : ''"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="log-viewer max-h-96 overflow-y-auto">
+                    <template x-if="loadingLogs">
+                        <div class="flex items-center justify-center py-12">
+                            <i data-lucide="loader-2" class="w-8 h-8 text-purple-400 animate-spin"></i>
+                        </div>
+                    </template>
+                    <template x-if="!loadingLogs && serverLogs.length === 0">
+                        <div class="flex flex-col items-center justify-center py-12 text-slate-600">
+                            <i data-lucide="file-x" class="w-12 h-12 mb-4 opacity-40"></i>
+                            <p class="text-sm">No logs available</p>
+                        </div>
+                    </template>
+                    <template x-if="!loadingLogs && serverLogs.length > 0">
+                        <div>
+                            <template x-for="log in serverLogs" :key="log.time + log.message">
+                                <div class="log-entry text-slate-400">
+                                    <span class="text-slate-600" x-text="log.time"></span>
+                                    <span x-text="log.message"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="p-4 border-t border-slate-800/50 text-xs text-slate-600">
+                    <span x-text="`Showing ${serverLogs.length} log entries`"></span>
+                    <span class="ml-2">(IPs and sensitive data filtered)</span>
+                </div>
+            </section>
+        </div>
+
+        <!-- Whitelist Tab -->
+        <div x-show="activeTab === 'whitelist'" x-transition>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Whitelist Players -->
+                <section class="lg:col-span-2 glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                        <h3 class="section-title text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="list-checks" class="w-5 h-5 text-purple-400"></i>
+                            Whitelisted Players
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30" x-text="`${whitelist.length} players`"></span>
+                            <!-- Sort Buttons -->
+                            <div class="flex items-center gap-1 p-1 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                                <button @click="whitelistSort = 'az'"
+                                    class="px-2 py-1 rounded text-xs font-medium transition-all"
+                                    :class="whitelistSort === 'az' ? 'bg-purple-500/20 text-purple-300' : 'text-slate-500 hover:text-slate-300'"
+                                    title="Sort A to Z">
+                                    A-Z
+                                </button>
+                                <button @click="whitelistSort = 'za'"
+                                    class="px-2 py-1 rounded text-xs font-medium transition-all"
+                                    :class="whitelistSort === 'za' ? 'bg-purple-500/20 text-purple-300' : 'text-slate-500 hover:text-slate-300'"
+                                    title="Sort Z to A">
+                                    Z-A
+                                </button>
+                            </div>
+                            <button @click="fetchWhitelist()" :disabled="loadingWhitelist"
+                                class="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 border border-slate-600/50 transition-all">
+                                <i data-lucide="refresh-cw" class="w-4 h-4" :class="loadingWhitelist ? 'animate-spin' : ''"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="min-h-[200px]">
+                        <template x-if="!serverRunning">
+                            <div class="h-full flex flex-col items-center justify-center text-slate-600 py-12">
+                                <i data-lucide="power-off" class="w-12 h-12 opacity-40 mb-4"></i>
+                                <p class="text-sm">Server offline</p>
+                            </div>
+                        </template>
+                        <template x-if="serverRunning && whitelist.length === 0">
+                            <div class="h-full flex flex-col items-center justify-center text-slate-600 py-12">
+                                <i data-lucide="user-x" class="w-12 h-12 opacity-40 mb-4"></i>
+                                <p class="text-sm">No players whitelisted</p>
+                            </div>
+                        </template>
+                        <div class="flex flex-wrap gap-2" x-show="serverRunning && whitelist.length > 0">
+                            <template x-for="player in sortedWhitelist" :key="player.name || player">
+                                <div class="group flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                                    <span class="text-sm text-white" x-text="player.name || player"></span>
+                                    <button x-show="hasPermission('whitelist:remove')" @click="removeFromWhitelist(player.name || player)"
+                                        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
+                                        title="Remove from whitelist">
+                                        <i data-lucide="x" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Add to Whitelist -->
+                <section x-show="hasPermission('whitelist:add')" class="glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                            <i data-lucide="user-plus" class="w-5 h-5 text-emerald-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Add Player</h3>
+                            <p class="text-xs text-slate-500">Add to whitelist</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Player Name
+                            </label>
+                            <div class="relative">
+                                <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600"></i>
+                                <input type="text" x-model="whitelistPlayer"
+                                    class="input-field w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="Enter username">
+                            </div>
+                        </div>
+
+                        <button @click="addToWhitelist()" :disabled="!whitelistPlayer.trim() || !serverRunning"
+                            class="btn-primary w-full py-3 rounded-xl text-white font-bold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                            <span class="flex items-center justify-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Add to Whitelist
+                            </span>
+                        </button>
+                    </div>
+                </section>
+
+                {% if 'whitelist:audit' in user_permissions %}
+                <section class="lg:col-span-3 glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-6">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                                    <i data-lucide="shield-alert" class="w-5 h-5 text-amber-300"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-white">Whitelist Inactivity Audit</h3>
+                                    <p class="text-xs text-slate-500">Review whitelist age, last seen time, and manually remove confirmed inactive players.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+                            <div class="min-w-[160px]">
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Inactive Days</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="3650"
+                                    x-model.number="whitelistAuditThresholdDays"
+                                    class="input-field w-full rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="30"
+                                >
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    @click="loadWhitelistAudit({ preserveSelection: true, forceRefresh: true })"
+                                    :disabled="loadingWhitelistAudit"
+                                    class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    <span x-show="!loadingWhitelistAudit" x-text="whitelistAudit.sharedAvailable ? 'Refresh Audit' : 'Generate Shared Audit'"></span>
+                                    <span x-show="loadingWhitelistAudit">Running...</span>
+                                </button>
+                                <button
+                                    @click="toggleRecommendedWhitelistSelection()"
+                                    :disabled="!recommendedWhitelistAuditEntries.length"
+                                    class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#0a0a0a] hover:bg-slate-800 border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    x-text="allRecommendedWhitelistSelected ? 'Unselect Recommended' : 'Select Recommended'"
+                                ></button>
+                                <button
+                                    @click="clearWhitelistAuditSelection()"
+                                    :disabled="whitelistAuditSelectedCount === 0"
+                                    class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    Clear Selection
+                                </button>
+                                <button
+                                    x-show="hasPermission('whitelist:prune')"
+                                    @click="pruneSelectedWhitelistEntries()"
+                                    :disabled="pruningWhitelistAudit || whitelistAuditSelectedCount === 0 || !serverRunning"
+                                    class="px-4 py-2.5 rounded-xl text-sm font-semibold text-red-100 bg-red-500/15 hover:bg-red-500/25 border border-red-400/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    <span x-show="!pruningWhitelistAudit" x-text="`Manually Remove Selected (${whitelistAuditSelectedCount})`"></span>
+                                    <span x-show="pruningWhitelistAudit">Removing...</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-show="hasPermission('whitelist:audit') && !hasPermission('whitelist:prune')" class="mb-4 rounded-xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
+                        Audit access is enabled. Manual removal still requires <span class="font-mono text-slate-100">whitelist:prune</span>.
+                    </div>
+
+                    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-4">
+                        <div class="rounded-xl bg-[#0a0a0a] border border-slate-700/40 px-4 py-3">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current</p>
+                            <p class="mt-2 text-2xl font-semibold text-white" x-text="whitelistAuditSummary.total"></p>
+                        </div>
+                        <div class="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-red-200/80">Recommended</p>
+                            <p class="mt-2 text-2xl font-semibold text-red-200" x-text="whitelistAuditSummary.recommended"></p>
+                        </div>
+                        <div class="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100/80">Never Joined</p>
+                            <p class="mt-2 text-2xl font-semibold text-amber-100" x-text="whitelistAuditSummary.neverJoined"></p>
+                        </div>
+                        <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 px-4 py-3">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Unknown Added</p>
+                            <p class="mt-2 text-2xl font-semibold text-white" x-text="whitelistAuditSummary.unknownAdded"></p>
+                        </div>
+                        <div class="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100/80">Last Shared Audit</p>
+                            <p class="mt-2 text-sm font-semibold text-emerald-100" x-text="whitelistAudit.generatedAt ? formatDate(whitelistAudit.generatedAt) : 'No shared audit yet'"></p>
+                            <p class="text-[11px] text-emerald-100/70" x-text="whitelistAudit.generatedBy ? `Generated by ${whitelistAudit.generatedBy}` : (whitelistAudit.sharedAvailable ? 'Generated before actor tracking was stored' : 'Refresh to create the first shared snapshot')"></p>
+                            <p class="text-[11px] text-emerald-100/70" x-text="whitelistAudit.snapshotThresholdDays ? `Viewing shared ${whitelistAudit.snapshotThresholdDays}-day snapshot` : 'No shared snapshot threshold yet'"></p>
+                            <p class="text-[11px] text-emerald-100/70" x-text="whitelistAudit.sharedAvailable ? (whitelistAudit.stale ? 'Shared snapshot may be outdated' : 'Shared snapshot is current') : 'No shared snapshot cached yet'"></p>
+                        </div>
+                    </div>
+
+                    <div x-show="whitelistAuditThresholdMismatch" class="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                        <span x-text="`Currently viewing the shared ${whitelistAudit.snapshotThresholdDays}-day snapshot.`"></span>
+                        <span class="text-amber-200/80" x-text="` Refresh Audit to create or update a ${whitelistAuditThresholdDays}-day snapshot.`"></span>
+                    </div>
+
+                    <template x-if="!whitelistAuditLoaded && !loadingWhitelistAudit">
+                        <div class="rounded-xl border border-dashed border-slate-700/60 px-6 py-10 text-center text-slate-500">
+                            Loading the latest shared audit snapshot...
+                        </div>
+                    </template>
+
+                    <template x-if="loadingWhitelistAudit">
+                        <div class="rounded-xl border border-slate-700/50 bg-[#0a0a0a] px-6 py-10 text-center text-slate-300">
+                            Building inactivity audit...
+                        </div>
+                    </template>
+
+                    <template x-if="whitelistAuditLoaded && !loadingWhitelistAudit && !whitelistAudit.sharedAvailable">
+                        <div class="rounded-xl border border-dashed border-slate-700/60 px-6 py-10 text-center text-slate-400">
+                            No shared whitelist audit exists yet. Use <span class="font-semibold text-slate-200">Generate Shared Audit</span> to build the first review snapshot for the team.
+                        </div>
+                    </template>
+
+                    <template x-if="whitelistAuditLoaded && !loadingWhitelistAudit && whitelistAudit.sharedAvailable && sortedWhitelistAuditEntries.length === 0">
+                        <div class="rounded-xl border border-slate-700/50 bg-[#0a0a0a] px-6 py-10 text-center text-slate-500">
+                            No whitelist audit rows returned.
+                        </div>
+                    </template>
+
+                    <div x-show="whitelistAuditLoaded && !loadingWhitelistAudit && sortedWhitelistAuditEntries.length > 0" class="space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                            <p>
+                                Threshold:
+                                <span class="font-semibold text-slate-300" x-text="`${whitelistAuditThresholdDays} days`"></span>
+                            </p>
+                            <p>
+                                Selected:
+                                <span class="font-semibold text-slate-300" x-text="whitelistAuditSelectedCount"></span>
+                            </p>
+                        </div>
+
+                        <template x-for="entry in sortedWhitelistAuditEntries" :key="entry.name">
+                            <div class="rounded-xl border border-slate-700/40 bg-[#0a0a0a] p-4">
+                                <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                                    <div class="flex items-start gap-3">
+                                        <label class="pt-1" x-show="entry.current_whitelisted && entry.name">
+                                            <input
+                                                type="checkbox"
+                                                class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-red-400"
+                                                :checked="isWhitelistAuditSelected(entry.name)"
+                                                :disabled="!entry.current_whitelisted || !entry.recommended_removal || !hasPermission('whitelist:prune')"
+                                                @change="toggleWhitelistAuditSelection(entry.name)"
+                                            >
+                                        </label>
+                                        <div>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <h4 class="text-base font-semibold text-white" x-text="entry.name"></h4>
+                                                <span
+                                                    class="px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                                                    :class="auditDecisionClasses(entry)"
+                                                    x-text="auditDecisionLabel(entry)"
+                                                ></span>
+                                                <span
+                                                    class="px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                                                    :class="auditConfidenceClasses(entry)"
+                                                    x-text="auditConfidenceLabel(entry)"
+                                                ></span>
+                                            </div>
+                                            <p class="mt-1 text-xs text-slate-400" x-text="entry.note || 'Review add date and last seen before removing.'"></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 xl:min-w-[28rem]">
+                                        <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Whitelisted On</p>
+                                            <p class="mt-1 text-sm font-semibold text-white" x-text="entry.added_at ? formatDate(entry.added_at) : 'Unknown'"></p>
+                                            <p class="text-[11px] text-slate-500" x-text="entry.added_source || 'No source metadata'"></p>
+                                        </div>
+                                        <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Last Seen</p>
+                                            <p class="mt-1 text-sm font-semibold text-white" x-text="entry.last_seen_at ? formatDate(entry.last_seen_at) : 'Never joined'"></p>
+                                            <p class="text-[11px] text-slate-500" x-text="entry.last_seen_source || 'No join history'"></p>
+                                        </div>
+                                        <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Inactive</p>
+                                            <p
+                                                class="mt-1 text-sm font-semibold"
+                                                :class="entry.recommended_removal ? 'text-red-200' : 'text-white'"
+                                                x-text="formatWhitelistAuditDays(entry.inactivity_days)"
+                                            ></p>
+                                            <p class="text-[11px] text-slate-500" x-text="entry.current_whitelisted ? 'Still on whitelist' : 'Already removed'"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="whitelistAuditLoaded && !loadingWhitelistAudit" class="mt-6 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">100-Day Lands Review</h4>
+                                <p class="mt-1 text-sm text-slate-400">Players crossing the long-term inactivity threshold for claim and asset review.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span class="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-red-100" x-text="`Due ${longTermInactivitySummary.total}`"></span>
+                                <span class="rounded-full border border-slate-700/60 bg-slate-900/50 px-3 py-1 text-slate-300" x-text="`Off Whitelist ${longTermInactivitySummary.offWhitelist}`"></span>
+                                <span class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-100" x-text="`No Join After Return ${longTermInactivitySummary.rewhitelistedNoNewJoin}`"></span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_8rem_auto]">
+                            <input
+                                type="search"
+                                x-model.debounce.250ms="longTermSearch"
+                                @input.debounce.300ms="loadLongTermInactivityPage({ resetOffset: true })"
+                                placeholder="Search player, remover, status..."
+                                class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                            >
+                            <select x-model="longTermStatusFilter" @change="loadLongTermInactivityPage({ resetOffset: true })" class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20">
+                                <option value="all">All reasons</option>
+                                <option value="lands_review_due">100-day review</option>
+                                <option value="never_joined_long_term">Never joined</option>
+                                <option value="rewhitelisted_no_new_join">Returned / no join</option>
+                            </select>
+                            <select x-model="longTermWhitelistFilter" @change="loadLongTermInactivityPage({ resetOffset: true })" class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20">
+                                <option value="all">All whitelist</option>
+                                <option value="current">Whitelisted</option>
+                                <option value="off_whitelist">Off whitelist</option>
+                            </select>
+                            <select x-model.number="longTermPageLimit" @change="loadLongTermInactivityPage({ resetOffset: true })" class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20">
+                                <option :value="25">25</option>
+                                <option :value="50">50</option>
+                                <option :value="100">100</option>
+                            </select>
+                            <button type="button" @click="resetLongTermInactivityView()" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700/60 bg-black/50 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-900">
+                                <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                                Reset
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <p class="text-xs text-slate-500" x-text="longTermInactivityResultLabel"></p>
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="previousLongTermInactivityPage()" :disabled="!longTermInactivityCanPrevious" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-black/50 text-slate-200 transition hover:border-cyan-400/50 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous 100-day review page">
+                                    <i data-lucide="chevron-left" class="h-4 w-4"></i>
+                                </button>
+                                <button type="button" @click="nextLongTermInactivityPage()" :disabled="!longTermInactivityCanNext" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-black/50 text-slate-200 transition hover:border-cyan-400/50 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 100-day review page">
+                                    <i data-lucide="chevron-right" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <template x-if="sortedLongTermInactivityAlerts.length === 0">
+                            <div class="rounded-xl border border-dashed border-slate-700/60 px-6 py-8 text-center text-slate-500" x-text="loadingLongTermInactivityPage ? 'Loading 100-day review...' : `${longTermInactivitySummary.thresholdDays}-day Lands review is clear for this view.`"></div>
+                        </template>
+
+                        <div x-show="sortedLongTermInactivityAlerts.length > 0" class="overflow-x-auto rounded-lg border border-slate-800/70">
+                            <table class="min-w-full divide-y divide-slate-800 text-left text-sm">
+                                <thead class="bg-black/60 text-xs uppercase tracking-[0.14em] text-slate-500">
+                                    <tr>
+                                        <th class="px-3 py-3 font-semibold">Player</th>
+                                        <th class="px-3 py-3 font-semibold">Status</th>
+                                        <th class="px-3 py-3 font-semibold">Last Seen / Added</th>
+                                        <th class="px-3 py-3 font-semibold">Inactive</th>
+                                        <th class="px-3 py-3 font-semibold">Whitelist</th>
+                                        <th class="px-3 py-3 font-semibold">Review Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/70 bg-black/30">
+                                    <template x-for="entry in sortedLongTermInactivityAlerts" :key="`lands-${entry.name}-${entry.last_seen_at || entry.added_at || entry.last_pruned_at || 'unknown'}`">
+                                        <tr class="align-top">
+                                            <td class="px-3 py-3 font-semibold text-white" x-text="entry.name"></td>
+                                            <td class="px-3 py-3">
+                                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="longTermAlertStatusClasses(entry)" x-text="longTermAlertStatusLabel(entry)"></span>
+                                            </td>
+                                            <td class="px-3 py-3 text-slate-300">
+                                                <p x-text="entry.last_seen_at ? formatDate(entry.last_seen_at) : 'Never joined'"></p>
+                                                <p class="mt-1 text-xs text-slate-500" x-text="entry.added_at ? `Added ${formatDate(entry.added_at)}` : 'Added unknown'"></p>
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <p class="font-semibold text-red-200" x-text="formatWhitelistAuditDays(entry.inactive_days ?? entry.days_since_added)"></p>
+                                                <p class="mt-1 text-xs text-slate-500" x-text="`${entry.threshold_days} day threshold`"></p>
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="entry.current_whitelisted ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100' : 'border-slate-600/60 bg-slate-700/40 text-slate-300'" x-text="entry.current_whitelisted ? 'Whitelisted' : 'Off Whitelist'"></span>
+                                            </td>
+                                            <td class="px-3 py-3 text-slate-400">
+                                                <p class="max-w-[26rem]" x-text="entry.note || 'Long-term inactivity review is due.'"></p>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div x-show="whitelistAuditLoaded && !loadingWhitelistAudit" class="mt-6 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Re-registration Log</h4>
+                                <p class="mt-1 text-sm text-slate-400">Dedicated return records for players added again after an audit removal.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span class="rounded-full border border-slate-700/60 bg-slate-900/50 px-3 py-1 text-slate-300" x-text="`Events ${rewhitelistHistorySummary.total}`"></span>
+                                <span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-emerald-100" x-text="`Joined ${rewhitelistHistorySummary.joinedAfterReturn}`"></span>
+                                <span class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-100" x-text="`Pending Join ${rewhitelistHistorySummary.pendingJoin}`"></span>
+                                <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-cyan-100" x-text="`Inferred ${rewhitelistHistorySummary.inferred}`"></span>
+                            </div>
+                        </div>
+
+                        <template x-if="sortedRewhitelistHistoryEntries.length === 0">
+                            <div class="rounded-xl border border-dashed border-slate-700/60 px-6 py-8 text-center text-slate-500">
+                                No re-registration events have been recorded yet.
+                            </div>
+                        </template>
+
+                        <div x-show="sortedRewhitelistHistoryEntries.length > 0" class="space-y-3 max-h-[24rem] overflow-y-auto pr-1">
+                            <template x-for="entry in sortedRewhitelistHistoryEntries" :key="`return-${entry.id || entry.name}-${entry.occurred_at || 'unknown'}`">
+                                <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                                    <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                                        <div>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <h4 class="text-base font-semibold text-white" x-text="entry.name"></h4>
+                                                <span
+                                                    class="px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                                                    :class="rewhitelistJoinStatusClasses(entry)"
+                                                    x-text="rewhitelistJoinStatusLabel(entry)"
+                                                ></span>
+                                                <span
+                                                    x-show="entry.inferred"
+                                                    class="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-cyan-400/40 bg-cyan-500/15 text-cyan-100"
+                                                >
+                                                    Inferred
+                                                </span>
+                                            </div>
+                                            <p class="mt-1 text-xs text-slate-400" x-text="entry.note || 'Returned after an audit-based whitelist removal.'"></p>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 xl:min-w-[40rem]">
+                                            <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Re-added On</p>
+                                                <p class="mt-1 text-sm font-semibold text-white" x-text="entry.occurred_at ? formatDate(entry.occurred_at) : 'Unknown'"></p>
+                                                <p class="text-[11px] text-slate-500" x-text="entry.source || 'Audit service'"></p>
+                                            </div>
+                                            <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Audit Removed</p>
+                                                <p class="mt-1 text-sm font-semibold text-white" x-text="entry.previous_removed_at ? formatDate(entry.previous_removed_at) : 'Unknown'"></p>
+                                                <p class="text-[11px] text-slate-500" x-text="entry.days_after_removal !== null ? `${entry.days_after_removal} day gap` : 'Gap unknown'"></p>
+                                            </div>
+                                            <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Previous Seen</p>
+                                                <p class="mt-1 text-sm font-semibold text-white" x-text="entry.previous_last_seen_at ? formatDate(entry.previous_last_seen_at) : 'Never joined'"></p>
+                                                <p class="text-[11px] text-slate-500" x-text="entry.days_since_previous_seen !== null ? `${entry.days_since_previous_seen} days before return` : 'No previous join'"></p>
+                                            </div>
+                                            <div class="rounded-lg bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Recorded By</p>
+                                                <p class="mt-1 text-sm font-semibold text-white break-all" x-text="entry.actor_email || (entry.inferred ? 'Log inference' : 'Unknown actor')"></p>
+                                                <p class="text-[11px] text-slate-500" x-text="entry.current_whitelisted ? 'Currently whitelisted' : 'Off whitelist'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div x-show="whitelistAuditLoaded && !loadingWhitelistAudit" class="mt-6 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Manually Removed Candidates</h4>
+                                <p class="mt-1 text-sm text-slate-400">Players removed through this audit stay archived here so staff can revisit them when they apply again.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span class="rounded-full border border-slate-700/60 bg-slate-900/50 px-3 py-1 text-slate-300" x-text="`Archived ${manualPruneHistorySummary.totalArchive}`"></span>
+                                <span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-emerald-100" x-text="`Returned ${manualPruneHistorySummary.returned}`"></span>
+                                <span class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-100" x-text="`Never Joined ${manualPruneHistorySummary.neverJoined}`"></span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_12rem_8rem_auto]">
+                            <label class="sr-only" for="staff-manual-prune-search">Search removed players</label>
+                            <input
+                                id="staff-manual-prune-search"
+                                type="search"
+                                x-model.debounce.150ms="manualPruneSearch"
+                                @input.debounce.300ms="loadManualPruneHistoryPage({ resetOffset: true })"
+                                placeholder="Search player, actor, status..."
+                                class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                            >
+                            <label class="sr-only" for="staff-manual-prune-status">Filter removed players</label>
+                            <select
+                                id="staff-manual-prune-status"
+                                x-model="manualPruneStatusFilter"
+                                @change="loadManualPruneHistoryPage({ resetOffset: true })"
+                                class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                            >
+                                <option value="all">All statuses</option>
+                                <option value="removed">Still removed</option>
+                                <option value="returned">Back on whitelist</option>
+                                <option value="never_joined">Never joined</option>
+                            </select>
+                            <select
+                                x-model.number="manualPrunePageLimit"
+                                @change="loadManualPruneHistoryPage({ resetOffset: true })"
+                                class="w-full rounded-lg border border-slate-700/60 bg-black/60 px-3 py-2 text-sm text-white focus:border-cyan-400/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                            >
+                                <option :value="25">25</option>
+                                <option :value="50">50</option>
+                                <option :value="100">100</option>
+                            </select>
+                            <button
+                                type="button"
+                                @click="resetManualPruneHistoryView()"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700/60 bg-black/50 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
+                            >
+                                <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                                Reset
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <p class="text-xs text-slate-500" x-text="manualPruneHistoryResultLabel"></p>
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="previousManualPruneHistoryPage()" :disabled="!manualPruneHistoryCanPrevious" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-black/50 text-slate-200 transition hover:border-cyan-400/50 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous manual prune page">
+                                    <i data-lucide="chevron-left" class="h-4 w-4"></i>
+                                </button>
+                                <button type="button" @click="nextManualPruneHistoryPage()" :disabled="!manualPruneHistoryCanNext" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-black/50 text-slate-200 transition hover:border-cyan-400/50 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next manual prune page">
+                                    <i data-lucide="chevron-right" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <template x-if="sortedManualPruneHistoryEntries.length === 0">
+                            <div class="rounded-xl border border-dashed border-slate-700/60 px-6 py-8 text-center text-slate-500">
+                                <span x-text="loadingManualPruneHistoryPage ? 'Loading archived removals...' : 'No audit-based manual removals match this view.'"></span>
+                            </div>
+                        </template>
+
+                        <div x-show="visibleManualPruneHistoryEntries.length > 0" class="overflow-x-auto rounded-lg border border-slate-800/70">
+                            <table class="min-w-full divide-y divide-slate-800 text-left text-sm">
+                                <thead class="bg-black/60 text-xs uppercase tracking-[0.14em] text-slate-500">
+                                    <tr>
+                                        <th class="px-3 py-3 font-semibold">Player</th>
+                                        <th class="px-3 py-3 font-semibold">Status</th>
+                                        <th class="px-3 py-3 font-semibold">Removed</th>
+                                        <th class="px-3 py-3 font-semibold">Last Seen At Removal</th>
+                                        <th class="px-3 py-3 font-semibold">Current Last Seen</th>
+                                        <th class="px-3 py-3 font-semibold">Removed By</th>
+                                        <th class="px-3 py-3 font-semibold">Rule Used</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/70 bg-black/30">
+                            <template x-for="entry in visibleManualPruneHistoryEntries" :key="`${entry.name}-${entry.removed_at || 'pending'}`">
+                                <tr class="align-top">
+                                    <td class="px-3 py-3">
+                                        <p class="font-semibold text-white" x-text="entry.name"></p>
+                                        <p class="mt-1 max-w-[18rem] text-xs text-slate-500" x-text="manualPruneHistorySubtitle(entry)"></p>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="manualPruneHistoryStatusClasses(entry)" x-text="manualPruneHistoryStatusLabel(entry)"></span>
+                                        <p x-show="entry.never_joined" class="mt-1 text-xs text-amber-200">Never joined</p>
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-300">
+                                        <p x-text="entry.removed_at ? formatDate(entry.removed_at) : 'Unknown'"></p>
+                                        <p class="mt-1 text-xs text-slate-500" x-text="entry.days_since_removal !== null ? `Time since removal: ${entry.days_since_removal} days` : 'Time since removal: unknown'"></p>
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-300">
+                                        <p x-text="entry.last_seen_at_at_removal ? formatDate(entry.last_seen_at_at_removal) : 'Never joined'"></p>
+                                        <p class="mt-1 text-xs text-slate-500" x-text="manualPruneHistoryActivityLabel(entry)"></p>
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-300">
+                                        <p x-text="entry.current_last_seen_at ? formatDate(entry.current_last_seen_at) : '--'"></p>
+                                        <p class="mt-1 text-xs text-slate-500" x-text="entry.current_inactive_days !== null ? `${entry.current_inactive_days} days ago` : 'No current join'"></p>
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-300 break-all" x-text="entry.removed_by || 'Unknown actor'"></td>
+                                    <td class="px-3 py-3 text-slate-300">
+                                        <p x-text="entry.removal_threshold_days ? `${entry.removal_threshold_days} day threshold` : 'Unknown'"></p>
+                                        <p class="mt-1 text-xs text-slate-500" x-text="entry.never_joined ? 'Never-joined review' : 'Inactive review'"></p>
+                                    </td>
+                                </tr>
+                            </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- CoreProtect Lookup Tab -->
+        <div x-show="activeTab === 'lookup'" x-transition>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Lookup Form -->
+                <section class="glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center">
+                            <i data-lucide="search" class="w-5 h-5 text-cyan-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">CoreProtect Lookup</h3>
+                            <p class="text-xs text-slate-500">Investigate block changes</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Lookup Type
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button @click="lookupType = 'player'"
+                                    class="px-3 py-2.5 rounded-lg text-sm font-medium border transition-all"
+                                    :class="lookupType === 'player'
+                                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400'
+                                        : 'bg-[#0a0a0a] border-slate-700/50 text-slate-400 hover:bg-slate-800'">
+                                    By Player
+                                </button>
+                                <button @click="lookupType = 'coords'"
+                                    class="px-3 py-2.5 rounded-lg text-sm font-medium border transition-all"
+                                    :class="lookupType === 'coords'
+                                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400'
+                                        : 'bg-[#0a0a0a] border-slate-700/50 text-slate-400 hover:bg-slate-800'">
+                                    By Coords
+                                </button>
+                            </div>
+                        </div>
+
+                        <template x-if="lookupType === 'player'">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                    Player Name
+                                </label>
+                                <input type="text" x-model="lookupPlayer"
+                                    class="input-field w-full rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="Enter username">
+                            </div>
+                        </template>
+
+                        <template x-if="lookupType === 'coords'">
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">X</label>
+                                        <input type="number" x-model.number="lookupCoords.x"
+                                            class="input-field w-full rounded-lg py-2 px-3 text-sm text-white focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Y</label>
+                                        <input type="number" x-model.number="lookupCoords.y"
+                                            class="input-field w-full rounded-lg py-2 px-3 text-sm text-white focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Z</label>
+                                        <input type="number" x-model.number="lookupCoords.z"
+                                            class="input-field w-full rounded-lg py-2 px-3 text-sm text-white focus:outline-none">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">Radius</label>
+                                    <input type="number" x-model.number="lookupCoords.radius" min="1" max="10"
+                                        class="input-field w-full rounded-lg py-2 px-3 text-sm text-white focus:outline-none"
+                                        placeholder="1-10">
+                                </div>
+                            </div>
+                        </template>
+
+                        <button @click="performLookup()" :disabled="lookupLoading || (lookupType === 'player' && !lookupPlayer)"
+                            class="btn-secondary w-full py-3 rounded-xl text-white font-bold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-show="!lookupLoading" class="flex items-center justify-center gap-2">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                                Search
+                            </span>
+                            <span x-show="lookupLoading" class="flex items-center justify-center gap-2">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                Searching...
+                            </span>
+                        </button>
+
+                        <div class="flex items-center gap-2 p-3 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                            <i data-lucide="info" class="w-4 h-4 text-slate-500 flex-shrink-0"></i>
+                            <p class="text-xs text-slate-500">
+                                Read-only. Last 7 days only.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Lookup Results -->
+                <section class="lg:col-span-2 glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="section-title text-lg font-bold text-white">
+                            Lookup Results
+                        </h3>
+                        <span class="px-3 py-1 rounded-lg bg-[#0a0a0a] text-xs font-medium text-slate-400"
+                            x-text="`${lookupResults.length} results`"></span>
+                    </div>
+
+                    <div class="max-h-96 overflow-y-auto">
+                        <template x-if="lookupResults.length === 0">
+                            <div class="flex flex-col items-center justify-center py-12 text-slate-600">
+                                <i data-lucide="search-x" class="w-12 h-12 opacity-40 mb-4"></i>
+                                <p class="text-sm">No results. Run a search.</p>
+                            </div>
+                        </template>
+                        <template x-if="lookupResults.length > 0">
+                            <div class="space-y-2">
+                                <template x-for="r in lookupResults" :key="r.id">
+                                    <div class="p-3 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-sm font-medium text-white" x-text="r.player"></span>
+                                            <span class="text-xs text-slate-500" x-text="r.timestamp"></span>
+                                        </div>
+                                        <div class="flex items-center gap-3 text-xs text-slate-400">
+                                            <span :class="{
+                                                'text-red-400': r.action === 'break',
+                                                'text-emerald-400': r.action === 'place',
+                                                'text-amber-400': r.action === 'interact'
+                                            }" x-text="r.action"></span>
+                                            <span x-text="r.block"></span>
+                                            <span class="text-slate-600" x-text="`@ ${r.x}, ${r.y}, ${r.z}`"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Warnings Tab -->
+        <div x-show="activeTab === 'warnings'" x-transition>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Recent Warnings -->
+                <section class="lg:col-span-2 glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="section-title text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-400"></i>
+                            Recent Warnings
+                        </h3>
+                        <button @click="fetchWarnings()" :disabled="loadingWarnings"
+                            class="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 border border-slate-600/50 transition-all">
+                            <i data-lucide="refresh-cw" class="w-4 h-4" :class="loadingWarnings ? 'animate-spin' : ''"></i>
+                        </button>
+                    </div>
+
+                    <div class="max-h-96 overflow-y-auto">
+                        <template x-if="warningsList.length === 0">
+                            <div class="flex flex-col items-center justify-center py-12 text-slate-600">
+                                <i data-lucide="check-circle" class="w-12 h-12 opacity-40 mb-4"></i>
+                                <p class="text-sm">No warnings issued</p>
+                            </div>
+                        </template>
+                        <template x-if="warningsList.length > 0">
+                            <div class="space-y-2">
+                                <template x-for="w in warningsList" :key="w.id">
+                                    <div class="p-4 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="text-sm font-semibold text-white" x-text="w.player"></span>
+                                                    <span class="px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-400">Warning</span>
+                                                </div>
+                                                <p class="text-sm text-slate-400 mb-2" x-text="w.reason"></p>
+                                                <div class="flex items-center gap-4 text-xs text-slate-500">
+                                                    <span x-text="new Date(w.timestamp).toLocaleString()"></span>
+                                                    <span>by <span class="text-slate-400" x-text="w.issued_by.split('@')[0]"></span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                <!-- Player Warning Lookup -->
+                <section class="glass-card glass-card-hover rounded-2xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-yellow-500/15 flex items-center justify-center">
+                            <i data-lucide="user-search" class="w-5 h-5 text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Player Lookup</h3>
+                            <p class="text-xs text-slate-500">Check warning history</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                Player Name
+                            </label>
+                            <div class="relative">
+                                <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600"></i>
+                                <input type="text" x-model="warningLookupPlayer"
+                                    class="input-field w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none"
+                                    placeholder="Enter username">
+                            </div>
+                        </div>
+
+                        <button @click="lookupPlayerWarnings()" :disabled="!warningLookupPlayer.trim()"
+                            class="btn-secondary w-full py-3 rounded-xl text-white font-bold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="flex items-center justify-center gap-2">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                                Search Warnings
+                            </span>
+                        </button>
+
+                        <template x-if="playerWarnings">
+                            <div class="mt-4 p-4 rounded-lg bg-[#0a0a0a] border border-slate-700/30">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="font-semibold text-white" x-text="warningLookupPlayer"></span>
+                                    <span class="px-2 py-1 rounded text-xs"
+                                        :class="playerWarnings.count >= 3 ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-400'"
+                                        x-text="`${playerWarnings.count} warnings`"></span>
+                                </div>
+                                <template x-if="playerWarnings.escalation_recommendation">
+                                    <div class="p-2 rounded bg-red-500/10 border border-red-500/30 text-xs text-red-400 mb-3">
+                                        <i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>
+                                        <span x-text="playerWarnings.escalation_recommendation"></span>
+                                    </div>
+                                </template>
+                                <div class="space-y-2 max-h-40 overflow-y-auto">
+                                    <template x-for="w in playerWarnings.warnings" :key="w.id">
+                                        <div class="text-xs text-slate-400 p-2 bg-[#0a0a0a]/50 rounded">
+                                            <p x-text="w.reason"></p>
+                                            <p class="text-slate-600 mt-1" x-text="new Date(w.timestamp).toLocaleDateString()"></p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div x-show="toast.show" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+            x-transition:leave-end="opacity-0 translate-y-4 scale-95"
+            class="fixed bottom-6 right-6 px-5 py-4 rounded-xl border shadow-2xl z-50 flex items-center gap-3 backdrop-blur-xl"
+            :class="toast.type === 'success'
+                ? 'bg-[#0a0a0a]/90 border-emerald-500/30 text-emerald-400'
+                : 'bg-[#0a0a0a]/90 border-red-500/30 text-red-400'">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                :class="toast.type === 'success' ? 'bg-emerald-500/20' : 'bg-red-500/20'">
+                <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-5 h-5"></i>
+            </div>
+            <span x-text="toast.message" class="text-sm font-medium"></span>
+        </div>
+
+        <!-- Confirm Dialog -->
+        <div x-show="confirmDialog.show" x-transition
+            @keydown.escape.window="resolveConfirm(false)"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="resolveConfirm(false)"></div>
+            <div class="relative w-full max-w-md glass-card rounded-2xl border border-slate-600/50 p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-bold text-white" x-text="confirmDialog.title"></h3>
+                        <p class="text-sm text-slate-400 mt-2" x-text="confirmDialog.message"></p>
+                    </div>
+                    <button @click="resolveConfirm(false)"
+                        class="text-slate-400 hover:text-white transition-colors"
+                        aria-label="Close confirmation dialog">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="mt-5 flex gap-2">
+                    <button @click="resolveConfirm(false)"
+                        class="flex-1 px-4 py-2.5 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-200 font-medium transition-all">
+                        Cancel
+                    </button>
+                    <button x-ref="confirmPrimaryBtn" @click="resolveConfirm(true)"
+                        :class="confirmDialog.intent === 'warning'
+                            ? 'bg-amber-500/25 hover:bg-amber-500/35 border border-amber-400/40 text-amber-100'
+                            : 'bg-red-500/25 hover:bg-red-500/35 border border-red-400/40 text-red-100'"
+                        class="flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all">
+                        <span x-text="confirmDialog.confirmText"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- prettier-ignore -->
+<script>
+// @formatter:off
+// DO NOT FORMAT THIS SECTION - Contains Jinja2 template syntax
+{% include "components/shared_status_poller.html" %}
+
+function staffPanel() {
+    return {
+        // Server state
+        serverRunning: {{ 'true' if server_status.running else 'false' }},
+        playersOnline: {{ server_status.players_online or 0 }},
+        maxPlayers: {{ server_status.max_players or 20 }},
+        players: {{ online_players | tojson }},
+        activeProfile: {{ active_profile | tojson }},
+        bluemapCapability: {{ bluemap_capability | tojson }},
+        bluemapAvailable: {{ 'true' if bluemap_capability.available else 'false' }},
+        loading: false,
+
+        // UI state
+        activeTab: 'players',
+        toast: { show: false, message: '', type: 'info' },
+        confirmDialog: {
+            show: false,
+            title: '',
+            message: '',
+            confirmText: 'Confirm',
+            intent: 'warning',
+            resolver: null
+        },
+        preferences: {
+            language: 'ko',
+            theme: 'dark',
+            font_scale: 'md',
+            high_contrast: false,
+            reduced_motion: false,
+            toast_duration_ms: 4000
+        },
+
+        // Ban form
+        banning: false,
+        banForm: {
+            player: '',
+            duration: '24h',
+            reason: 'Rule violation'
+        },
+
+        // Warn form
+        warning: false,
+        warnForm: {
+            player: '',
+            reason: '',
+            notify: true
+        },
+
+        // Broadcast
+        broadcasting: false,
+        broadcastMessage: '',
+
+        // Logs
+        loadingLogs: false,
+        serverLogs: [],
+        logSearch: '',
+
+        // Whitelist
+        loadingWhitelist: false,
+        whitelist: [],
+        whitelistPlayer: '',
+        whitelistSort: 'az', // 'az', 'za', or 'added'
+        loadingWhitelistAudit: false,
+        pruningWhitelistAudit: false,
+        whitelistAuditLoaded: false,
+        whitelistAuditThresholdDays: 30,
+        whitelistAuditSelection: [],
+        manualPruneSearch: '',
+        manualPruneStatusFilter: 'all',
+        manualPrunePageLimit: 25,
+        manualPrunePageOffset: 0,
+        loadingManualPruneHistoryPage: false,
+        longTermSearch: '',
+        longTermStatusFilter: 'all',
+        longTermWhitelistFilter: 'all',
+        longTermPageLimit: 25,
+        longTermPageOffset: 0,
+        loadingLongTermInactivityPage: false,
+        whitelistAudit: {
+            entries: [],
+            manualPruneHistory: [],
+            manualPruneSummary: {},
+            longTermInactivityAlerts: [],
+            longTermInactivitySummary: {},
+            rewhitelistHistory: [],
+            rewhitelistSummary: {},
+            generatedAt: null,
+            generatedBy: null,
+            snapshotThresholdDays: null,
+            requestedThresholdDays: null,
+            thresholdMatchesRequest: true,
+            sharedAvailable: false,
+            stale: false,
+            summary: {}
+        },
+
+        // RBAC Permissions (server-rendered)
+        permissions: {{ user_permissions | tojson }},
+        visibleModules: {{ visible_modules | tojson }},
+        staffMinecraftName: {{ staff_minecraft_name | tojson }},
+        hasHardcodedMinecraftName: {{ has_hardcoded_minecraft_name | tojson }},
+        staffMinecraftOnline: {{ (staff_minecraft_online | default(false)) | tojson }},
+        serverStatusPoller: null,
+        gamemodeSwitching: false,
+        vanishToggling: false,
+        tpInProgress: false,
+        quickTpPlayers: {{ online_players | tojson }},
+        quickTpTarget: '',
+
+        // CoreProtect Lookup
+        lookupType: 'player',
+        lookupPlayer: '',
+        lookupCoords: { x: 0, y: 64, z: 0, radius: 5 },
+        lookupLoading: false,
+        lookupResults: [],
+
+        // Warnings
+        loadingWarnings: false,
+        warningsList: [],
+        warningLookupPlayer: '',
+        playerWarnings: null,
+
+        init() {
+            lucide.createIcons();
+            this.applyPreferences();
+            window.addEventListener('cora-preferences-loaded', (event) => {
+                this.preferences = window.CoraAdminPreferences
+                    ? window.CoraAdminPreferences.normalize({ ...this.preferences, ...(event.detail || {}) })
+                    : { ...this.preferences, ...(event.detail || {}) };
+                this.applyPreferences();
+            });
+            this.loadMySettings();
+            this.loadPreferences();
+            if (this.hasPermission('status:view')) {
+                this.startSharedStatusPolling();
+                if (this.hasPermission('spectator:quick_toggle')) {
+                    this.refreshQuickTogglePlayers();
+                    setInterval(() => this.refreshQuickTogglePlayers(), 5000);
+                }
+            } else if (this.hasPermission('spectator:quick_toggle')) {
+                this.refreshQuickTogglePlayers();
+                setInterval(() => this.refreshQuickTogglePlayers(), 5000);
+            }
+            // Load initial data for visible tabs
+            if (this.hasPermission('logs:view')) {
+                this.fetchLogs();
+            }
+            if (this.hasPermission('warnings:view')) {
+                this.fetchWarnings();
+            }
+            if (this.serverRunning && this.hasPermission('whitelist:view')) {
+                this.fetchWhitelist();
+            }
+            if (this.hasPermission('whitelist:audit')) {
+                this.loadWhitelistAudit({ preserveSelection: true, latestShared: true });
+            }
+        },
+
+        openBanModal(player) {
+            this.banForm.player = player;
+            this.activeTab = 'moderation';
+        },
+
+        openWarnModal(player) {
+            this.warnForm.player = player;
+            this.activeTab = 'moderation';
+        },
+
+        startSharedStatusPolling() {
+            if (this.serverStatusPoller || !this.hasPermission('status:view')) return;
+            this.serverStatusPoller = createCoraSharedPoller({
+                channelName: 'cora-minecraft-staff-status',
+                intervalMs: 5000,
+                fetchData: () => this.fetchStatusData(),
+                applyData: (data) => this.applyStatusData(data),
+                shouldPoll: () => !document.hidden
+            });
+        },
+
+        async fetchStatusData() {
+            const response = await fetch('/minecraft/staff/api/minecraft/status');
+            if (response.status === 403) return null;
+            return await response.json();
+        },
+
+        applyStatusData(data) {
+            if (data?.status === 'ok') {
+                this.serverRunning = data.server.running;
+                this.playersOnline = data.server.players_online || 0;
+                this.maxPlayers = data.server.max_players || 20;
+                this.players = this.hasPermission('players:view') && Array.isArray(data.server.players)
+                    ? data.server.players
+                    : [];
+                if (data.active_profile) {
+                    this.activeProfile = this.normalizeActiveProfile(data.active_profile);
+                }
+            } else if (data) {
+                this.players = [];
+            }
+
+            if (!this.hasPermission('spectator:quick_toggle')) {
+                this.quickTpPlayers = [];
+                this.quickTpTarget = '';
+                this.staffMinecraftOnline = false;
+            }
+
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async refreshStatus() {
+            if (!this.hasPermission('status:view')) return;
+            try {
+                const data = await this.fetchStatusData();
+                this.applyStatusData(data);
+                return data;
+            } catch (e) {
+                console.error('Status refresh failed:', e);
+                return null;
+            }
+        },
+
+        async refreshQuickTogglePlayers() {
+            if (!this.hasPermission('spectator:quick_toggle')) return;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/quick-toggle/players');
+                if (response.status === 403) return;
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    if (typeof data.server_running === 'boolean') {
+                        this.serverRunning = data.server_running;
+                    }
+                    if (typeof data.has_hardcoded_minecraft_name === 'boolean') {
+                        this.hasHardcodedMinecraftName = data.has_hardcoded_minecraft_name;
+                    }
+                    if (typeof data.staff_online === 'boolean') {
+                        this.staffMinecraftOnline = data.staff_online;
+                    }
+                    if (!this.serverRunning) {
+                        this.quickTpPlayers = [];
+                        this.quickTpTarget = '';
+                        this.staffMinecraftOnline = false;
+                        return;
+                    }
+                    const myName = (this.staffMinecraftName || '').toLowerCase();
+                    const uniquePlayers = Array.from(new Set(
+                        (data.players || [])
+                            .map((player) => this.extractUsername(player))
+                            .filter((player) => player && player.toLowerCase() !== myName)
+                    ));
+                    this.quickTpPlayers = uniquePlayers;
+                    if (!this.staffMinecraftOnline && this.hasHardcodedMinecraftName && myName) {
+                        this.staffMinecraftOnline = (data.players || []).some(
+                            (player) => this.extractUsername(player).toLowerCase() === myName
+                        );
+                    }
+                    if (this.quickTpTarget && !uniquePlayers.some((p) => p.toLowerCase() === this.quickTpTarget.toLowerCase())) {
+                        this.quickTpTarget = '';
+                    }
+                }
+            } catch (e) {
+                console.error('Quick toggle player refresh failed:', e);
+                this.staffMinecraftOnline = false;
+            }
+        },
+
+        extractUsername(displayName) {
+            const match = displayName.match(/\[.*?\]\s*(.+)/) || displayName.match(/^(.+)$/);
+            return match ? match[1].trim() : displayName.trim();
+        },
+
+        normalizeActiveProfile(profile = {}) {
+            return {
+                id: String(profile.id || ''),
+                name: String(profile.name || profile.id || ''),
+                kind: String(profile.kind || 'live'),
+                operations_enabled: profile.operations_enabled !== false,
+                rcon_enabled: profile.rcon_enabled !== false,
+                readonly: Boolean(profile.readonly)
+            };
+        },
+
+        activeProfileOperationsBlocked() {
+            const profile = this.activeProfile;
+            return Boolean(profile && (profile.readonly || !profile.operations_enabled));
+        },
+
+        activeProfileRconBlocked() {
+            const profile = this.activeProfile;
+            return Boolean(profile && (profile.readonly || !profile.operations_enabled || !profile.rcon_enabled));
+        },
+
+        formatStaffOperationError(data, fallback = 'Operation failed') {
+            const code = data?.error_code;
+            if (code === 'profile_readonly') {
+                return 'Active profile is readonly. Staff operations are blocked.';
+            }
+            if (code === 'profile_operations_disabled') {
+                return 'Active profile has operations disabled. Staff operations are blocked.';
+            }
+            if (code === 'profile_rcon_disabled') {
+                return 'Active profile has RCON disabled. This staff action is blocked.';
+            }
+            return data?.error || fallback;
+        },
+
+        newOpKey(prefix) {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return `${prefix}-${window.crypto.randomUUID()}`;
+            }
+            return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        },
+
+        getAvatarUrls(playerName) {
+            const cleanUsername = this.extractUsername(playerName);
+            const safeUsername = encodeURIComponent(cleanUsername);
+            return [
+                `https://mc-heads.net/avatar/${safeUsername}/40`,
+                `https://minotar.net/avatar/${safeUsername}/40`,
+                `https://mc-heads.net/avatar/${safeUsername}/40?retry=1`,
+                `https://crafthead.net/avatar/${safeUsername}/40`,
+                `https://mc-heads.net/avatar/Steve/40`
+            ];
+        },
+
+        loadAvatarWithRetry(img, playerName) {
+            const urls = this.getAvatarUrls(playerName);
+            let currentIndex = parseInt(img.dataset.urlIndex || '0');
+            if (currentIndex >= urls.length - 1) return;
+            currentIndex++;
+            img.dataset.urlIndex = currentIndex;
+            if (currentIndex > 0) {
+                setTimeout(() => { img.src = urls[currentIndex]; }, 300 * currentIndex);
+            } else {
+                img.src = urls[currentIndex];
+            }
+        },
+
+        applyPreferences() {
+            if (window.CoraAdminPreferences) {
+                this.preferences = window.CoraAdminPreferences.normalize(this.preferences);
+                window.CoraAdminPreferences.apply(this.preferences);
+                return;
+            }
+            const html = document.documentElement;
+            html.lang = this.preferences.language || 'ko';
+            html.setAttribute('data-font-scale', this.preferences.font_scale || 'md');
+            html.setAttribute('data-high-contrast', this.preferences.high_contrast ? 'true' : 'false');
+            html.setAttribute('data-reduced-motion', this.preferences.reduced_motion ? 'true' : 'false');
+            html.classList.remove('pref-theme-light', 'pref-theme-dark');
+            html.classList.add(this.preferences.theme === 'light' ? 'pref-theme-light' : 'pref-theme-dark');
+        },
+
+        async loadPreferences() {
+            try {
+                const response = await fetch('/minecraft/staff/api/preferences');
+                if (!response.ok) return;
+                const data = await response.json();
+                if (data.status === 'ok' && data.preferences) {
+                    this.preferences = window.CoraAdminPreferences
+                        ? window.CoraAdminPreferences.normalize({ ...this.preferences, ...data.preferences })
+                        : { ...this.preferences, ...data.preferences };
+                    window.CoraAdminPreferences?.store(this.preferences);
+                    this.applyPreferences();
+                }
+            } catch (e) {
+                console.error('Failed to load preferences:', e);
+            }
+        },
+
+        tr(koText, enText) {
+            return this.preferences.language === 'en' ? enText : koText;
+        },
+
+        confirmAction({
+            title = 'Confirm Action',
+            message = '',
+            confirmText = 'Confirm',
+            intent = 'warning'
+        }) {
+            return new Promise((resolve) => {
+                this.confirmDialog = {
+                    show: true,
+                    title,
+                    message,
+                    confirmText,
+                    intent,
+                    resolver: resolve
+                };
+                this.$nextTick(() => {
+                    this.$refs.confirmPrimaryBtn?.focus();
+                    lucide.createIcons();
+                });
+            });
+        },
+
+        resolveConfirm(confirmed) {
+            if (!this.confirmDialog.show) return;
+            const resolver = this.confirmDialog.resolver;
+            this.confirmDialog = {
+                show: false,
+                title: '',
+                message: '',
+                confirmText: 'Confirm',
+                intent: 'warning',
+                resolver: null
+            };
+            if (typeof resolver === 'function') resolver(confirmed);
+        },
+
+        async startServer() {
+            if (this.activeProfileOperationsBlocked()) {
+                this.showToast(this.formatStaffOperationError({ error_code: this.activeProfile?.readonly ? 'profile_readonly' : 'profile_operations_disabled' }), 'error');
+                return;
+            }
+            const confirmed = await this.confirmAction({
+                title: this.tr('서버 시작', 'Start Server'),
+                message: this.tr('서버 프로세스를 시작하고 플레이어 접속을 허용합니다.', 'The server process will start and become available to players.'),
+                confirmText: this.tr('시작', 'Start'),
+                intent: 'warning'
+            });
+            if (!confirmed) return;
+            this.loading = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/server/start', {
+                    method: 'POST',
+                    headers: { 'Idempotency-Key': this.newOpKey('start') }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(this.tr('서버 시작 중...', 'Server starting...'), 'success');
+                    this.serverRunning = true;
+                    let checkCount = 0;
+                    const fastPoll = setInterval(() => {
+                        this.refreshStatus();
+                        checkCount++;
+                        if (checkCount > 10) clearInterval(fastPoll);
+                    }, 2000);
+                } else {
+                    if (data.error_code === 'server_operation_in_progress') {
+                        this.showToast(this.tr('다른 서버 작업이 진행 중입니다.', 'Another server operation is in progress.'), 'error');
+                    } else {
+                        this.showToast(this.formatStaffOperationError(data, this.tr('서버 시작 실패', 'Failed to start server')), 'error');
+                    }
+                }
+            } catch (e) {
+                this.showToast(this.tr('서버 시작 실패', 'Failed to start server'), 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async restartServer() {
+            if (this.activeProfileOperationsBlocked()) {
+                this.showToast(this.formatStaffOperationError({ error_code: this.activeProfile?.readonly ? 'profile_readonly' : 'profile_operations_disabled' }), 'error');
+                return;
+            }
+            const confirmed = await this.confirmAction({
+                title: this.tr('서버 재시작', 'Restart Server'),
+                message: this.tr('재시작 중에는 접속한 플레이어가 모두 퇴장됩니다.', 'All connected players will be disconnected during restart.'),
+                confirmText: this.tr('재시작', 'Restart'),
+                intent: 'danger'
+            });
+            if (!confirmed) return;
+            this.loading = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/server/restart', {
+                    method: 'POST',
+                    headers: { 'Idempotency-Key': this.newOpKey('restart') }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(this.tr('재시작 명령 전송 완료', 'Restart command sent!'), 'success');
+                } else {
+                    if (data.error_code === 'restart_in_progress') {
+                        this.showToast(this.tr('이미 재시작이 진행 중입니다.', 'Restart is already in progress.'), 'error');
+                    } else if (data.error_code === 'server_operation_in_progress') {
+                        this.showToast(this.tr('다른 서버 작업이 진행 중입니다.', 'Another server operation is in progress.'), 'error');
+                    } else if (data.error_code === 'restart_cooldown') {
+                        const wait = Number.isFinite(Number(data.retry_after_seconds)) ? Number(data.retry_after_seconds) : 0;
+                        this.showToast(
+                            this.tr('서버 안정화 대기 중입니다. ', 'Server is stabilizing. Retry in ') + `${wait}s`,
+                            'error'
+                        );
+                    } else {
+                        this.showToast(this.formatStaffOperationError(data, this.tr('서버 재시작 실패', 'Failed to restart server')), 'error');
+                    }
+                }
+            } catch (e) {
+                this.showToast(this.tr('서버 재시작 실패', 'Failed to restart server'), 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async switchMyGamemode(mode) {
+            if (this.activeProfileRconBlocked()) {
+                this.showToast(this.formatStaffOperationError({ error_code: this.activeProfile?.readonly ? 'profile_readonly' : (!this.activeProfile?.operations_enabled ? 'profile_operations_disabled' : 'profile_rcon_disabled') }), 'error');
+                return;
+            }
+            if (!this.staffMinecraftOnline) {
+                this.showToast(this.tr('먼저 인게임 접속이 필요합니다.', 'Your bound Minecraft account must be online first.'), 'error');
+                return;
+            }
+            const modeLabel = mode === 'spectator'
+                ? this.tr('관전 모드', 'Spectator Mode')
+                : this.tr('서바이벌 모드', 'Survival Mode');
+            const confirmed = await this.confirmAction({
+                title: this.tr('모드 전환', 'Switch Game Mode'),
+                message: this.tr(`${modeLabel}로 전환합니다.`, `Switch your character to ${modeLabel}.`),
+                confirmText: this.tr('전환', 'Switch'),
+                intent: 'warning'
+            });
+            if (!confirmed) return;
+
+            this.gamemodeSwitching = true;
+            try {
+                const response = await fetch(`/minecraft/staff/api/minecraft/gamemode/${mode}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    this.showToast(data.message || this.tr('모드 전환 완료', 'Game mode switched'), 'success');
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, this.tr('모드 전환 실패', 'Failed to switch mode')), 'error');
+                }
+            } catch (e) {
+                this.showToast(this.tr('모드 전환 실패', 'Failed to switch mode'), 'error');
+            } finally {
+                this.gamemodeSwitching = false;
+            }
+        },
+
+        async toggleMyVanish() {
+            if (this.activeProfileRconBlocked()) {
+                this.showToast(this.formatStaffOperationError({ error_code: this.activeProfile?.readonly ? 'profile_readonly' : (!this.activeProfile?.operations_enabled ? 'profile_operations_disabled' : 'profile_rcon_disabled') }), 'error');
+                return;
+            }
+            if (!this.staffMinecraftOnline) {
+                this.showToast(this.tr('먼저 인게임 접속이 필요합니다.', 'Your bound Minecraft account must be online first.'), 'error');
+                return;
+            }
+            const confirmed = await this.confirmAction({
+                title: this.tr('배니쉬 토글', 'Toggle Vanish'),
+                message: this.tr('배니쉬 상태를 전환합니다.', 'This will toggle your vanish state.'),
+                confirmText: this.tr('실행', 'Apply'),
+                intent: 'warning'
+            });
+            if (!confirmed) return;
+
+            this.vanishToggling = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/vanish/toggle', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    this.showToast(data.message || this.tr('배니쉬 토글 완료', 'Vanish toggled'), 'success');
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, this.tr('배니쉬 토글 실패', 'Failed to toggle vanish')), 'error');
+                }
+            } catch (e) {
+                this.showToast(this.tr('배니쉬 토글 실패', 'Failed to toggle vanish'), 'error');
+            } finally {
+                this.vanishToggling = false;
+            }
+        },
+
+        async tpToPlayerInSpectator() {
+            if (this.activeProfileRconBlocked()) {
+                this.showToast(this.formatStaffOperationError({ error_code: this.activeProfile?.readonly ? 'profile_readonly' : (!this.activeProfile?.operations_enabled ? 'profile_operations_disabled' : 'profile_rcon_disabled') }), 'error');
+                return;
+            }
+            if (!this.staffMinecraftOnline) {
+                this.showToast(this.tr('먼저 인게임 접속이 필요합니다.', 'Your bound Minecraft account must be online first.'), 'error');
+                return;
+            }
+            if (!this.quickTpTarget) {
+                this.showToast(this.tr('대상을 선택하세요.', 'Choose a target player first.'), 'error');
+                return;
+            }
+            const confirmed = await this.confirmAction({
+                title: this.tr('관전 TP', 'Spectator TP'),
+                message: this.tr(`${this.quickTpTarget}에게 TP합니다.`, `Teleport to ${this.quickTpTarget}.`),
+                confirmText: this.tr('TP', 'Teleport'),
+                intent: 'warning'
+            });
+            if (!confirmed) return;
+
+            this.tpInProgress = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/spectator/tp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: this.quickTpTarget })
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    this.showToast(data.message || this.tr('TP 완료', 'Teleported'), 'success');
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, this.tr('TP 실패', 'Failed to teleport')), 'error');
+                }
+            } catch (e) {
+                this.showToast(this.tr('TP 실패', 'Failed to teleport'), 'error');
+            } finally {
+                this.tpInProgress = false;
+            }
+        },
+
+        async tempbanPlayer() {
+            if (!this.banForm.player.trim()) {
+                this.showToast('Enter a player name', 'error');
+                return;
+            }
+            if (!confirm(`Ban ${this.banForm.player} for ${this.banForm.duration}?`)) return;
+            this.banning = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/tempban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.banForm)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    this.banForm.player = '';
+                    this.banForm.reason = 'Rule violation';
+                    this.refreshStatus();
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, 'Failed to ban player'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to ban player', 'error');
+            } finally {
+                this.banning = false;
+            }
+        },
+
+        async kickPlayer(player) {
+            if (!confirm(`Kick ${player} from the server?`)) return;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/kick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player, reason: 'Kicked by staff' })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    this.refreshStatus();
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, 'Failed to kick player'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to kick player', 'error');
+            }
+        },
+
+        async warnPlayer() {
+            if (!this.warnForm.player.trim() || !this.warnForm.reason.trim()) {
+                this.showToast('Player name and reason required', 'error');
+                return;
+            }
+            if (!confirm(`Issue warning to ${this.warnForm.player}?`)) return;
+            this.warning = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/warn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.warnForm)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    let msg = data.message;
+                    if (data.escalation_recommendation) {
+                        msg += ` (${data.escalation_recommendation})`;
+                    }
+                    this.showToast(msg, 'success');
+                    this.warnForm.player = '';
+                    this.warnForm.reason = '';
+                    this.fetchWarnings();
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, 'Failed to issue warning'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to issue warning', 'error');
+            } finally {
+                this.warning = false;
+            }
+        },
+
+        async sendBroadcast() {
+            if (!this.broadcastMessage.trim()) return;
+            if (!confirm('Send this broadcast to all players?')) return;
+            this.broadcasting = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/broadcast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: this.broadcastMessage })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast('Broadcast sent!', 'success');
+                    this.broadcastMessage = '';
+                } else {
+                    this.showToast(this.formatStaffOperationError(data, 'Failed to send broadcast'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to send broadcast', 'error');
+            } finally {
+                this.broadcasting = false;
+            }
+        },
+
+        async fetchLogs() {
+            if (!this.hasPermission('logs:view')) {
+                this.serverLogs = [];
+                return;
+            }
+            this.loadingLogs = true;
+            try {
+                let url = '/minecraft/staff/api/minecraft/logs?lines=200';
+                if (this.logSearch.trim()) {
+                    url += `&search=${encodeURIComponent(this.logSearch.trim())}`;
+                }
+                const response = await fetch(url);
+                if (response.status === 403) return;
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.serverLogs = data.logs || [];
+                }
+            } catch (e) {
+                console.error('Failed to fetch logs:', e);
+            } finally {
+                this.loadingLogs = false;
+                this.$nextTick(() => lucide.createIcons());
+            }
+        },
+
+        async fetchWhitelist() {
+            if (!this.serverRunning || !this.hasPermission('whitelist:view')) return;
+            this.loadingWhitelist = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/whitelist');
+                if (response.status === 403) return;
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.whitelist = data.players || [];
+                }
+            } catch (e) {
+                console.error('Failed to fetch whitelist:', e);
+            } finally {
+                this.loadingWhitelist = false;
+            }
+        },
+
+        async loadWhitelistAudit(options = {}) {
+            if (!this.hasPermission('whitelist:audit')) {
+                this.showToast('Whitelist audit permission is required', 'error');
+                return;
+            }
+            const { preserveSelection = false, forceRefresh = false, latestShared = false } = options;
+            const threshold = Number(this.whitelistAuditThresholdDays);
+            if (!Number.isFinite(threshold) || threshold < 1) {
+                this.showToast('Enter a valid inactive day threshold', 'error');
+                return;
+            }
+
+            this.loadingWhitelistAudit = true;
+            try {
+                const query = new URLSearchParams({
+                    inactive_days: String(threshold),
+                });
+                if (forceRefresh) {
+                    query.set('refresh', 'true');
+                }
+                if (latestShared && !forceRefresh) {
+                    query.set('latest_shared', 'true');
+                }
+                const response = await fetch(`/minecraft/staff/api/minecraft/whitelist/audit?${query.toString()}`);
+                const data = await response.json();
+                if (data.status === 'ok' || data.success) {
+                    const entries = (data.entries || data.players || [])
+                        .map((entry) => this.normalizeWhitelistAuditEntry(entry))
+                        .filter((entry) => entry.name);
+                    const snapshotThreshold = Number(data.threshold_days || data.inactive_days);
+                    const requestedThreshold = Number(data.requested_inactive_days || threshold);
+                    const sharedAvailable = data.shared_snapshot_available !== undefined
+                        ? Boolean(data.shared_snapshot_available)
+                        : Boolean((data.generated_at || data.generatedAt) && entries.length >= 0);
+                    if (Number.isFinite(snapshotThreshold) && snapshotThreshold > 0) {
+                        this.whitelistAuditThresholdDays = snapshotThreshold;
+                    }
+                    this.whitelistAudit = {
+                        entries,
+                        manualPruneHistory: (data.manual_prune_history || data.manualPruneHistory || data.prune_history || [])
+                            .map((entry) => this.normalizeManualPruneHistoryEntry(entry))
+                            .filter((entry) => entry.name),
+                        manualPruneSummary: data.manual_prune_summary || data.manualPruneSummary || data.prune_history_summary || {},
+                        longTermInactivityAlerts: (data.long_term_inactivity_alerts || data.longTermInactivityAlerts || [])
+                            .map((entry) => this.normalizeLongTermInactivityAlert(entry))
+                            .filter((entry) => entry.name),
+                        longTermInactivitySummary: data.long_term_inactivity_summary || data.longTermInactivitySummary || {},
+                        rewhitelistHistory: (data.rewhitelist_history || data.rewhitelistHistory || [])
+                            .map((entry) => this.normalizeRewhitelistHistoryEntry(entry))
+                            .filter((entry) => entry.name),
+                        rewhitelistSummary: data.rewhitelist_summary || data.rewhitelistSummary || {},
+                        generatedAt: data.generated_at || data.generatedAt || data.indexed_at || null,
+                        generatedBy: data.generated_by || data.generatedBy || null,
+                        snapshotThresholdDays: Number.isFinite(snapshotThreshold) && snapshotThreshold > 0 ? snapshotThreshold : null,
+                        requestedThresholdDays: Number.isFinite(requestedThreshold) && requestedThreshold > 0 ? requestedThreshold : null,
+                        thresholdMatchesRequest: data.threshold_matches_request !== undefined
+                            ? Boolean(data.threshold_matches_request)
+                            : snapshotThreshold === requestedThreshold,
+                        sharedAvailable,
+                        stale: Boolean(data.stale),
+                        summary: data.summary || {}
+                    };
+                    this.whitelistAuditLoaded = true;
+                    this.manualPrunePageOffset = 0;
+                    this.longTermPageOffset = 0;
+                    await Promise.all([
+                        this.loadManualPruneHistoryPage({ resetOffset: true }),
+                        this.loadLongTermInactivityPage({ resetOffset: true }),
+                    ]);
+                    this.$nextTick(() => lucide.createIcons());
+
+                    if (preserveSelection) {
+                        const validNames = new Set(entries.filter((entry) => entry.current_whitelisted).map((entry) => entry.name));
+                        this.whitelistAuditSelection = this.whitelistAuditSelection.filter((name) => validNames.has(name));
+                    } else {
+                        this.clearWhitelistAuditSelection();
+                    }
+                } else {
+                    this.showToast(data.error || data.detail || 'Failed to run whitelist audit', 'error');
+                }
+            } catch (e) {
+                console.error('Failed to load whitelist audit:', e);
+                this.showToast('Failed to run whitelist audit', 'error');
+            } finally {
+                this.loadingWhitelistAudit = false;
+            }
+        },
+
+        async addToWhitelist() {
+            if (!this.whitelistPlayer.trim()) return;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/whitelist/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player: this.whitelistPlayer })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    this.whitelistPlayer = '';
+                    await this.fetchWhitelist();
+                    if (this.whitelistAuditLoaded) {
+                        await this.loadWhitelistAudit({ preserveSelection: true, forceRefresh: true });
+                    }
+                } else {
+                    this.showToast('Failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to add to whitelist', 'error');
+            }
+        },
+
+        async removeFromWhitelist(player) {
+            if (!confirm(`Remove ${player} from whitelist?`)) return;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/whitelist/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    await this.fetchWhitelist();
+                    if (this.whitelistAuditLoaded) {
+                        await this.loadWhitelistAudit({ preserveSelection: true, forceRefresh: true });
+                    }
+                } else {
+                    this.showToast('Failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to remove from whitelist', 'error');
+            }
+        },
+
+        async pruneSelectedWhitelistEntries() {
+            if (!this.hasPermission('whitelist:prune')) {
+                this.showToast('Whitelist prune permission is required', 'error');
+                return;
+            }
+            const selectedPlayers = this.whitelistAuditSelection.filter(Boolean);
+            if (!selectedPlayers.length) return;
+            const threshold = Number(this.whitelistAuditThresholdDays);
+            if (!Number.isFinite(threshold) || threshold < 1) {
+                this.showToast('Enter a valid inactive day threshold', 'error');
+                return;
+            }
+
+            const confirmed = await this.confirmAction({
+                title: 'Manual Whitelist Prune',
+                message: [
+                    `Remove ${selectedPlayers.length} selected player(s) from the whitelist?`,
+                    `Threshold: ${threshold} inactive day(s).`,
+                    '',
+                    'This action is manual and intended for confirmed inactive players only.',
+                    'They will need to re-apply before entering the server again.',
+                    '',
+                    `Selected: ${selectedPlayers.join(', ')}`
+                ].join('\n'),
+                confirmText: 'Remove Players',
+                intent: 'warning'
+            });
+            if (!confirmed) return;
+
+            this.pruningWhitelistAudit = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/whitelist/prune', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        players: selectedPlayers,
+                        inactive_days: threshold,
+                        confirm: true,
+                    })
+                });
+                const data = await response.json();
+                const removedCount = Array.isArray(data.removed) ? data.removed.length : 0;
+                const failedCount = Array.isArray(data.failed) ? data.failed.length : 0;
+                const partialSuccess = Boolean(data.partial_success || (removedCount > 0 && failedCount > 0));
+                if (data.success || partialSuccess || removedCount > 0) {
+                    this.showToast(
+                        data.message || `Removed ${removedCount || selectedPlayers.length} player(s)`,
+                        partialSuccess ? 'info' : 'success'
+                    );
+                    this.clearWhitelistAuditSelection();
+                    await this.fetchWhitelist();
+                    await this.loadWhitelistAudit({ preserveSelection: true, forceRefresh: true });
+                    if (!data.success && !partialSuccess) {
+                        this.showToast(data.error || data.detail || 'Some selected players were not removed', 'error');
+                    }
+                } else {
+                    this.showToast(data.error || data.detail || 'Failed to remove selected players', 'error');
+                }
+            } catch (e) {
+                console.error('Failed to prune selected whitelist entries:', e);
+                this.showToast('Failed to remove selected players', 'error');
+            } finally {
+                this.pruningWhitelistAudit = false;
+            }
+        },
+
+        async performLookup() {
+            this.lookupLoading = true;
+            this.lookupResults = [];
+            try {
+                let url = '/minecraft/staff/api/minecraft/coreprotect/lookup?';
+                if (this.lookupType === 'player') {
+                    url += `player=${encodeURIComponent(this.lookupPlayer)}`;
+                } else {
+                    url += `x=${this.lookupCoords.x}&y=${this.lookupCoords.y}&z=${this.lookupCoords.z}&radius=${this.lookupCoords.radius}`;
+                }
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.lookupResults = data.results || [];
+                } else {
+                    this.showToast('Lookup failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to perform lookup', 'error');
+            } finally {
+                this.lookupLoading = false;
+            }
+        },
+
+        async fetchWarnings() {
+            if (!this.hasPermission('warnings:view')) {
+                this.warningsList = [];
+                return;
+            }
+            this.loadingWarnings = true;
+            try {
+                const response = await fetch('/minecraft/staff/api/minecraft/warnings?limit=50');
+                if (response.status === 403) return;
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.warningsList = data.warnings || [];
+                }
+            } catch (e) {
+                console.error('Failed to fetch warnings:', e);
+            } finally {
+                this.loadingWarnings = false;
+            }
+        },
+
+        async lookupPlayerWarnings() {
+            if (!this.warningLookupPlayer.trim()) return;
+            if (!this.hasPermission('warnings:view')) {
+                this.showToast('No permission: warnings:view', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`/minecraft/staff/api/minecraft/warnings/${encodeURIComponent(this.warningLookupPlayer)}`);
+                if (response.status === 403) return;
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.playerWarnings = data;
+                } else {
+                    this.showToast('Failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to lookup warnings', 'error');
+            }
+        },
+
+        async loadMySettings() {
+            try {
+                const response = await fetch('/minecraft/staff/api/my-settings');
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.permissions = data.permissions || [];
+                    this.visibleModules = data.visible_modules || [];
+                    this.staffMinecraftName = data.hardcoded_minecraft_name || '';
+                    this.hasHardcodedMinecraftName = !!data.has_hardcoded_minecraft_name;
+                    if (!this.hasHardcodedMinecraftName) {
+                        this.staffMinecraftOnline = false;
+                    }
+                    if (this.hasPermission('spectator:quick_toggle') && this.serverRunning) {
+                        this.refreshQuickTogglePlayers();
+                    }
+                    if (this.hasPermission('whitelist:audit')) {
+                        if (!this.whitelistAuditLoaded && !this.loadingWhitelistAudit) {
+                            this.loadWhitelistAudit({ preserveSelection: true, latestShared: true });
+                        }
+                    } else {
+                        this.whitelistAuditLoaded = false;
+                        this.whitelistAudit = {
+                            entries: [],
+                            manualPruneHistory: [],
+                            manualPruneSummary: {},
+                            longTermInactivityAlerts: [],
+                            longTermInactivitySummary: {},
+                            rewhitelistHistory: [],
+                            rewhitelistSummary: {},
+                            generatedAt: null,
+                            generatedBy: null,
+                            snapshotThresholdDays: null,
+                            requestedThresholdDays: null,
+                            thresholdMatchesRequest: true,
+                            sharedAvailable: false,
+                            stale: false,
+                            summary: {}
+                        };
+                        this.clearWhitelistAuditSelection();
+                    }
+                    if (data.preferences) {
+                        this.preferences = window.CoraAdminPreferences
+                            ? window.CoraAdminPreferences.normalize({ ...this.preferences, ...data.preferences })
+                            : { ...this.preferences, ...data.preferences };
+                        window.CoraAdminPreferences?.store(this.preferences);
+                        this.applyPreferences();
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        },
+
+        get sortedWhitelist() {
+            if (!this.whitelist || this.whitelist.length === 0) return [];
+            
+            const list = [...this.whitelist];
+            
+            if (this.whitelistSort === 'az') {
+                return list.sort((a, b) => {
+                    const nameA = (a.name || a).toLowerCase();
+                    const nameB = (b.name || b).toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+            } else if (this.whitelistSort === 'za') {
+                return list.sort((a, b) => {
+                    const nameA = (a.name || a).toLowerCase();
+                    const nameB = (b.name || b).toLowerCase();
+                    return nameB.localeCompare(nameA);
+                });
+            } else {
+                // 'added' - sort by original index (add order)
+                return list.sort((a, b) => (a.index || 0) - (b.index || 0));
+            }
+        },
+
+        get whitelistAuditThresholdMismatch() {
+            const currentThreshold = Number(this.whitelistAuditThresholdDays || 0);
+            const snapshotThreshold = Number(this.whitelistAudit.snapshotThresholdDays || 0);
+            return Boolean(
+                this.whitelistAuditLoaded
+                && this.whitelistAudit.sharedAvailable
+                && currentThreshold > 0
+                && snapshotThreshold > 0
+                && currentThreshold !== snapshotThreshold
+            );
+        },
+
+        get sortedWhitelistAuditEntries() {
+            return [...(this.whitelistAudit.entries || [])].sort((a, b) => {
+                const priorityA = this.whitelistAuditPriorityRank(a);
+                const priorityB = this.whitelistAuditPriorityRank(b);
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
+                const ageA = this.whitelistAuditSortAge(a);
+                const ageB = this.whitelistAuditSortAge(b);
+                if (ageA !== ageB) {
+                    return ageB - ageA;
+                }
+                return (a.name || '').localeCompare(b.name || '');
+            });
+        },
+
+        get recommendedWhitelistAuditEntries() {
+            return this.sortedWhitelistAuditEntries.filter((entry) => entry.current_whitelisted && entry.recommended_removal);
+        },
+
+        get sortedManualPruneHistoryEntries() {
+            return [...(this.whitelistAudit.manualPruneHistory || [])].sort((a, b) => {
+                const removedAtA = a.removed_at || '';
+                const removedAtB = b.removed_at || '';
+                if (removedAtA !== removedAtB) {
+                    return removedAtB.localeCompare(removedAtA);
+                }
+                return (a.name || '').localeCompare(b.name || '');
+            });
+        },
+
+        get filteredManualPruneHistoryEntries() {
+            return this.sortedManualPruneHistoryEntries;
+        },
+
+        get visibleManualPruneHistoryEntries() {
+            return this.filteredManualPruneHistoryEntries;
+        },
+
+        get manualPruneHistoryHasMore() {
+            return Boolean(this.manualPruneHistorySummary.hasMore);
+        },
+
+        get sortedLongTermInactivityAlerts() {
+            return [...(this.whitelistAudit.longTermInactivityAlerts || [])].sort((a, b) => {
+                const rank = { rewhitelisted_no_new_join: 0, lands_review_due: 1, never_joined_long_term: 2 };
+                const priorityA = rank[a.status] ?? 3;
+                const priorityB = rank[b.status] ?? 3;
+                if (priorityA !== priorityB) return priorityA - priorityB;
+                const ageA = Number(a.inactive_days ?? a.days_since_added ?? -1);
+                const ageB = Number(b.inactive_days ?? b.days_since_added ?? -1);
+                if (ageA !== ageB) return ageB - ageA;
+                return (a.name || '').localeCompare(b.name || '');
+            });
+        },
+
+        get sortedRewhitelistHistoryEntries() {
+            return [...(this.whitelistAudit.rewhitelistHistory || [])].sort((a, b) => {
+                const occurredAtA = a.occurred_at || '';
+                const occurredAtB = b.occurred_at || '';
+                if (occurredAtA !== occurredAtB) {
+                    return occurredAtB.localeCompare(occurredAtA);
+                }
+                return (a.name || '').localeCompare(b.name || '');
+            });
+        },
+
+        get whitelistAuditSelectedCount() {
+            return this.whitelistAuditSelection.length;
+        },
+
+        get allRecommendedWhitelistSelected() {
+            const names = this.recommendedWhitelistAuditEntries.map((entry) => entry.name);
+            return names.length > 0 && names.every((name) => this.whitelistAuditSelection.includes(name));
+        },
+
+        get whitelistAuditSummary() {
+            const entries = this.whitelistAudit.entries || [];
+            const summary = this.whitelistAudit.summary || {};
+            const fallback = {
+                total: entries.length,
+                recommended: entries.filter((entry) => entry.current_whitelisted && entry.recommended_removal).length,
+                neverJoined: entries.filter((entry) => !entry.last_seen_at).length,
+                unknownAdded: entries.filter((entry) => !entry.added_at).length,
+            };
+
+            return {
+                total: summary.total ?? summary.total_current ?? fallback.total,
+                recommended: summary.recommended ?? summary.recommended_count ?? fallback.recommended,
+                neverJoined: summary.neverJoined ?? summary.never_joined_count ?? fallback.neverJoined,
+                unknownAdded: summary.unknownAdded ?? summary.unknown_added_at_count ?? fallback.unknownAdded,
+            };
+        },
+
+        get manualPruneHistorySummary() {
+            const entries = this.whitelistAudit.manualPruneHistory || [];
+            const summary = this.whitelistAudit.manualPruneSummary || {};
+            const fallback = {
+                total: entries.length,
+                loaded: entries.length,
+                returned: entries.filter((entry) => entry.current_whitelisted).length,
+                neverJoined: entries.filter((entry) => entry.never_joined).length,
+            };
+            return {
+                total: summary.total ?? summary.totalArchive ?? summary.total_archive ?? fallback.total,
+                totalArchive: summary.totalArchive ?? summary.total_archive ?? summary.archive_total ?? summary.total ?? fallback.total,
+                loaded: summary.loaded ?? summary.loaded_count ?? summary.count ?? fallback.loaded,
+                filtered: summary.filtered ?? fallback.loaded,
+                limit: summary.limit ?? this.manualPrunePageLimit,
+                offset: summary.offset ?? this.manualPrunePageOffset,
+                hasMore: summary.hasMore ?? summary.has_more ?? false,
+                returned: summary.returned ?? summary.rewhitelisted ?? summary.returned_to_whitelist ?? fallback.returned,
+                neverJoined: summary.neverJoined ?? summary.never_joined ?? fallback.neverJoined,
+                currentlyRemoved: summary.currentlyRemoved ?? summary.currently_removed ?? entries.filter((entry) => !entry.current_whitelisted).length,
+            };
+        },
+
+        get manualPruneHistoryResultLabel() {
+            const summary = this.manualPruneHistorySummary;
+            if (summary.filtered === 0) return `Showing 0 of ${summary.totalArchive} archived removals`;
+            const start = summary.offset + 1;
+            const end = summary.offset + this.visibleManualPruneHistoryEntries.length;
+            return `Showing ${start}-${end} of ${summary.filtered} matching archived removals (${summary.totalArchive} total)`;
+        },
+
+        get manualPruneHistoryCanPrevious() {
+            return this.manualPruneHistorySummary.offset > 0 && !this.loadingManualPruneHistoryPage;
+        },
+
+        get manualPruneHistoryCanNext() {
+            return this.manualPruneHistoryHasMore && !this.loadingManualPruneHistoryPage;
+        },
+
+        get longTermInactivitySummary() {
+            const entries = this.whitelistAudit.longTermInactivityAlerts || [];
+            const summary = this.whitelistAudit.longTermInactivitySummary || {};
+            return {
+                thresholdDays: summary.thresholdDays ?? summary.threshold_days ?? 100,
+                total: summary.total ?? entries.length,
+                filtered: summary.filtered ?? entries.length,
+                limit: summary.limit ?? this.longTermPageLimit,
+                offset: summary.offset ?? this.longTermPageOffset,
+                hasMore: summary.hasMore ?? summary.has_more ?? false,
+                offWhitelist: summary.offWhitelist ?? summary.off_whitelist ?? entries.filter((entry) => !entry.current_whitelisted).length,
+                currentWhitelisted: summary.currentWhitelisted ?? summary.current_whitelisted ?? entries.filter((entry) => entry.current_whitelisted).length,
+                rewhitelistedNoNewJoin: summary.rewhitelistedNoNewJoin ?? summary.rewhitelisted_no_new_join ?? entries.filter((entry) => entry.status === 'rewhitelisted_no_new_join').length,
+                neverJoined: summary.neverJoined ?? summary.never_joined ?? entries.filter((entry) => entry.status === 'never_joined_long_term').length,
+            };
+        },
+
+        get longTermInactivityResultLabel() {
+            const summary = this.longTermInactivitySummary;
+            if (summary.filtered === 0) return `Showing 0 of ${summary.total} long-term review candidates`;
+            const start = summary.offset + 1;
+            const end = summary.offset + this.sortedLongTermInactivityAlerts.length;
+            return `Showing ${start}-${end} of ${summary.filtered} matching candidates (${summary.total} total)`;
+        },
+
+        get longTermInactivityCanPrevious() {
+            return this.longTermInactivitySummary.offset > 0 && !this.loadingLongTermInactivityPage;
+        },
+
+        get longTermInactivityCanNext() {
+            return Boolean(this.longTermInactivitySummary.hasMore) && !this.loadingLongTermInactivityPage;
+        },
+
+        get rewhitelistHistorySummary() {
+            const entries = this.whitelistAudit.rewhitelistHistory || [];
+            const summary = this.whitelistAudit.rewhitelistSummary || {};
+            return {
+                total: summary.total ?? entries.length,
+                currentWhitelisted: summary.currentWhitelisted ?? summary.current_whitelisted ?? entries.filter((entry) => entry.current_whitelisted).length,
+                joinedAfterReturn: summary.joinedAfterReturn ?? summary.joined_after_return ?? entries.filter((entry) => entry.joined_after_rewhitelist).length,
+                pendingJoin: summary.pendingJoin ?? summary.pending_join ?? entries.filter((entry) => !entry.joined_after_rewhitelist).length,
+                inferred: summary.inferred ?? entries.filter((entry) => entry.inferred).length,
+            };
+        },
+
+        formatWhitelistAuditDays(days) {
+            const value = Number(days);
+            if (!Number.isFinite(value) || value < 0) return 'No login record';
+            if (value === 0) return 'Today';
+            return `${value} day${value === 1 ? '' : 's'}`;
+        },
+
+        isWhitelistAuditTopPriority(entry) {
+            return Boolean(entry?.current_whitelisted && entry?.recommended_removal && entry?.never_joined);
+        },
+
+        whitelistAuditPriorityRank(entry) {
+            if (this.isWhitelistAuditTopPriority(entry)) return 0;
+            if (entry?.recommended_removal) return 1;
+            if (entry?.never_joined) return 2;
+            return 3;
+        },
+
+        whitelistAuditSortAge(entry) {
+            const value = entry?.never_joined ? Number(entry?.whitelist_age_days) : Number(entry?.inactivity_days);
+            return Number.isFinite(value) ? value : -1;
+        },
+
+        auditDecisionLabel(entry) {
+            if (!entry.current_whitelisted) return 'Already Removed';
+            if (this.isWhitelistAuditTopPriority(entry)) return 'Top Priority';
+            if (entry.recommended_removal) return 'Recommended Removal';
+            if (!entry.last_seen_at) return 'Needs Review';
+            return 'Keep Listed';
+        },
+
+        auditDecisionClasses(entry) {
+            if (!entry.current_whitelisted) {
+                return 'border-slate-600/60 bg-slate-700/40 text-slate-300';
+            }
+            if (this.isWhitelistAuditTopPriority(entry)) {
+                return 'border-rose-300/70 bg-rose-500/25 text-rose-50';
+            }
+            if (entry.recommended_removal) {
+                return 'border-red-400/40 bg-red-500/15 text-red-200';
+            }
+            if (!entry.last_seen_at) {
+                return 'border-amber-400/40 bg-amber-500/15 text-amber-100';
+            }
+            return 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100';
+        },
+
+        auditConfidenceLabel(entry) {
+            const value = String(entry.data_confidence || 'unknown').toLowerCase();
+            if (value === 'high') return 'Confidence: High';
+            if (value === 'medium') return 'Confidence: Medium';
+            if (value === 'low') return 'Confidence: Low';
+            return 'Confidence: Unknown';
+        },
+
+        auditConfidenceClasses(entry) {
+            const value = String(entry.data_confidence || 'unknown').toLowerCase();
+            if (value === 'high') {
+                return 'border-cyan-400/40 bg-cyan-500/15 text-cyan-100';
+            }
+            if (value === 'medium') {
+                return 'border-indigo-400/40 bg-indigo-500/15 text-indigo-100';
+            }
+            return 'border-slate-600/60 bg-slate-700/40 text-slate-300';
+        },
+
+        manualPruneHistoryStatusLabel(entry) {
+            return entry.current_whitelisted ? 'Back on Whitelist' : 'Still Removed';
+        },
+
+        manualPruneHistoryStatusClasses(entry) {
+            if (entry.current_whitelisted) {
+                return 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100';
+            }
+            return 'border-slate-600/60 bg-slate-700/40 text-slate-300';
+        },
+
+        async loadManualPruneHistoryPage({ resetOffset = false } = {}) {
+            if (!this.hasPermission('whitelist:audit')) return;
+            if (resetOffset) this.manualPrunePageOffset = 0;
+            this.loadingManualPruneHistoryPage = true;
+            try {
+                const query = new URLSearchParams({
+                    limit: String(this.manualPrunePageLimit),
+                    offset: String(this.manualPrunePageOffset),
+                    q: this.manualPruneSearch || '',
+                    status: this.manualPruneStatusFilter || 'all',
+                });
+                const response = await fetch(`/minecraft/staff/api/minecraft/whitelist/manual-prune-history?${query.toString()}`);
+                const data = await response.json();
+                if (!response.ok || !(data.status === 'ok' || data.success)) {
+                    throw new Error(data.error || data.detail || 'Failed to load manual prune history');
+                }
+                this.whitelistAudit.manualPruneHistory = (data.items || [])
+                    .map((entry) => this.normalizeManualPruneHistoryEntry(entry))
+                    .filter((entry) => entry.name);
+                this.whitelistAudit.manualPruneSummary = data.summary || {};
+                this.$nextTick(() => lucide.createIcons());
+            } catch (e) {
+                console.error('Failed to load manual prune history page:', e);
+                this.showToast('Failed to load manual prune history', 'error');
+            } finally {
+                this.loadingManualPruneHistoryPage = false;
+            }
+        },
+
+        async loadLongTermInactivityPage({ resetOffset = false } = {}) {
+            if (!this.hasPermission('whitelist:audit')) return;
+            if (resetOffset) this.longTermPageOffset = 0;
+            this.loadingLongTermInactivityPage = true;
+            try {
+                const query = new URLSearchParams({
+                    threshold_days: '100',
+                    limit: String(this.longTermPageLimit),
+                    offset: String(this.longTermPageOffset),
+                    q: this.longTermSearch || '',
+                    status: this.longTermStatusFilter || 'all',
+                    whitelist: this.longTermWhitelistFilter || 'all',
+                });
+                const response = await fetch(`/minecraft/staff/api/minecraft/whitelist/long-term-inactivity?${query.toString()}`);
+                const data = await response.json();
+                if (!response.ok || !(data.status === 'ok' || data.success)) {
+                    throw new Error(data.error || data.detail || 'Failed to load 100-day review');
+                }
+                this.whitelistAudit.longTermInactivityAlerts = (data.items || [])
+                    .map((entry) => this.normalizeLongTermInactivityAlert(entry))
+                    .filter((entry) => entry.name);
+                this.whitelistAudit.longTermInactivitySummary = data.summary || {};
+                this.$nextTick(() => lucide.createIcons());
+            } catch (e) {
+                console.error('Failed to load 100-day review page:', e);
+                this.showToast('Failed to load 100-day review', 'error');
+            } finally {
+                this.loadingLongTermInactivityPage = false;
+            }
+        },
+
+        resetManualPruneHistoryView() {
+            this.manualPruneSearch = '';
+            this.manualPruneStatusFilter = 'all';
+            this.manualPrunePageLimit = 25;
+            this.manualPrunePageOffset = 0;
+            this.loadManualPruneHistoryPage({ resetOffset: true });
+        },
+
+        nextManualPruneHistoryPage() {
+            if (!this.manualPruneHistoryCanNext) return;
+            this.manualPrunePageOffset += this.manualPruneHistorySummary.limit;
+            this.loadManualPruneHistoryPage();
+        },
+
+        previousManualPruneHistoryPage() {
+            if (!this.manualPruneHistoryCanPrevious) return;
+            this.manualPrunePageOffset = Math.max(0, this.manualPrunePageOffset - this.manualPruneHistorySummary.limit);
+            this.loadManualPruneHistoryPage();
+        },
+
+        resetLongTermInactivityView() {
+            this.longTermSearch = '';
+            this.longTermStatusFilter = 'all';
+            this.longTermWhitelistFilter = 'all';
+            this.longTermPageLimit = 25;
+            this.longTermPageOffset = 0;
+            this.loadLongTermInactivityPage({ resetOffset: true });
+        },
+
+        nextLongTermInactivityPage() {
+            if (!this.longTermInactivityCanNext) return;
+            this.longTermPageOffset += this.longTermInactivitySummary.limit;
+            this.loadLongTermInactivityPage();
+        },
+
+        previousLongTermInactivityPage() {
+            if (!this.longTermInactivityCanPrevious) return;
+            this.longTermPageOffset = Math.max(0, this.longTermPageOffset - this.longTermInactivitySummary.limit);
+            this.loadLongTermInactivityPage();
+        },
+
+        manualPruneHistoryActivityLabel(entry) {
+            if (entry.never_joined) {
+                return entry.days_since_added_at_removal !== null
+                    ? `Whitelist age at removal: ${entry.days_since_added_at_removal} days`
+                    : 'Never joined';
+            }
+            return entry.inactive_days_at_removal !== null
+                ? `Inactive at removal: ${entry.inactive_days_at_removal} days`
+                : 'Unknown activity';
+        },
+
+        manualPruneHistorySubtitle(entry) {
+            if (entry.never_joined) {
+                return 'No join record before the manual prune.';
+            }
+            if (entry.last_seen_at) {
+                const removal = entry.inactive_days_at_removal !== null
+                    ? `${entry.inactive_days_at_removal} days inactive at removal`
+                    : 'removal-time activity unknown';
+                const current = entry.current_last_seen_at
+                    ? `Current latest seen ${this.formatDate(entry.current_last_seen_at)} (${entry.current_inactive_days ?? 'unknown'} days ago)`
+                    : 'Current latest seen unknown';
+                return `Last seen at removal ${this.formatDate(entry.last_seen_at_at_removal || entry.last_seen_at)}; ${removal}; ${current}.`;
+            }
+            return 'Archived from a manual whitelist prune so staff can revisit the player later.';
+        },
+
+        longTermAlertStatusLabel(entry) {
+            if (entry.status === 'rewhitelisted_no_new_join') return 'Re-added / No Join';
+            if (entry.status === 'never_joined_long_term') return 'Never Joined';
+            return '100-Day Review';
+        },
+
+        longTermAlertStatusClasses(entry) {
+            if (entry.status === 'rewhitelisted_no_new_join') {
+                return 'border-amber-400/40 bg-amber-500/15 text-amber-100';
+            }
+            if (entry.status === 'never_joined_long_term') {
+                return 'border-sky-400/40 bg-sky-500/15 text-sky-100';
+            }
+            return 'border-red-400/40 bg-red-500/15 text-red-200';
+        },
+
+        rewhitelistJoinStatusLabel(entry) {
+            return entry.joined_after_rewhitelist ? 'Joined After Return' : 'Awaiting Join';
+        },
+
+        rewhitelistJoinStatusClasses(entry) {
+            if (entry.joined_after_rewhitelist) {
+                return 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100';
+            }
+            return 'border-amber-400/40 bg-amber-500/15 text-amber-100';
+        },
+
+        toNullableNumber(value) {
+            if (value === null || value === undefined || value === '') return null;
+            const numberValue = Number(value);
+            return Number.isFinite(numberValue) ? numberValue : null;
+        },
+
+        normalizeWhitelistAuditEntry(entry) {
+            const inactivityDays = Number(entry.inactivity_days);
+            const threshold = Number(this.whitelistAuditThresholdDays) || 0;
+            const lastSeenAt = entry.last_seen_at || entry.last_join_at || entry.last_login_at || null;
+            const addedAt = entry.added_at || entry.whitelisted_at || entry.created_at || null;
+            const rawWhitelistAgeDays = Number(entry.days_since_added ?? entry.whitelist_age_days ?? entry.added_age_days);
+            let whitelistAgeDays = Number.isFinite(rawWhitelistAgeDays) ? rawWhitelistAgeDays : null;
+            if (whitelistAgeDays === null && addedAt) {
+                const addedDate = new Date(addedAt);
+                if (!Number.isNaN(addedDate.getTime())) {
+                    whitelistAgeDays = Math.max(0, Math.floor((Date.now() - addedDate.getTime()) / 86400000));
+                }
+            }
+            const neverJoined = entry.never_joined !== undefined ? Boolean(entry.never_joined) : !lastSeenAt;
+            return {
+                name: entry.name || entry.player || '',
+                added_at: addedAt,
+                added_source: entry.added_source || entry.added_from || '',
+                last_seen_at: lastSeenAt,
+                last_seen_source: entry.last_seen_source || entry.last_seen_from || '',
+                inactivity_days: Number.isFinite(inactivityDays) ? inactivityDays : null,
+                whitelist_age_days: whitelistAgeDays,
+                never_joined: neverJoined,
+                current_whitelisted: entry.current_whitelisted !== false,
+                recommended_removal: Boolean(
+                    entry.recommended_removal
+                    ?? entry.should_prune
+                    ?? (Number.isFinite(inactivityDays) && inactivityDays >= threshold)
+                ),
+                data_confidence: (entry.data_confidence || entry.confidence || 'unknown').toString().toLowerCase(),
+                note: entry.note || entry.reason || '',
+            };
+        },
+
+        normalizeManualPruneHistoryEntry(entry) {
+            const legacyInactiveDaysOnly = (
+                entry.inactive_days !== undefined
+                && entry.removal_threshold_days === undefined
+                && entry.inactive_days_threshold === undefined
+                && entry.threshold_days === undefined
+                && entry.threshold === undefined
+                && entry.inactive_days_at_removal === undefined
+                && entry.inactivity_days === undefined
+                && entry.days_since_seen === undefined
+            );
+            const removalThresholdDays = this.toNullableNumber(
+                entry.removal_threshold_days
+                ?? entry.inactive_days_threshold
+                ?? entry.threshold_days
+                ?? entry.threshold
+                ?? (legacyInactiveDaysOnly ? entry.inactive_days : null)
+            );
+            const inactiveDaysAtRemoval = this.toNullableNumber(
+                entry.inactive_days_at_removal
+                ?? entry.inactivity_days
+                ?? (legacyInactiveDaysOnly ? null : entry.inactive_days)
+                ?? entry.days_since_seen
+            );
+            const daysSinceAddedAtRemoval = this.toNullableNumber(
+                entry.days_since_added_at_removal
+                ?? entry.days_since_added
+                ?? entry.whitelist_age_days
+            );
+            const daysSinceRemoval = this.toNullableNumber(entry.days_since_removal ?? entry.removed_age_days);
+            const currentInactiveDays = this.toNullableNumber(entry.current_inactive_days ?? entry.days_since_last_seen);
+            const removedAt = entry.removed_at || entry.pruned_at || entry.archived_at || null;
+            const lastSeenAtAtRemoval = entry.last_seen_at_at_removal || entry.last_seen_at_removal || entry.last_seen_at || entry.last_join_at || entry.last_login_at || null;
+            const currentLastSeenAt = entry.current_last_seen_at || entry.current_last_join_at || null;
+            const addedAt = entry.added_at || entry.whitelisted_at || entry.created_at || null;
+            const neverJoined = entry.never_joined !== undefined ? Boolean(entry.never_joined) : !lastSeenAtAtRemoval;
+            const currentWhitelisted = Boolean(
+                entry.current_whitelisted
+                ?? entry.back_on_whitelist
+                ?? entry.relisted
+                ?? false
+            );
+            return {
+                name: entry.name || entry.player || '',
+                removed_at: removedAt,
+                removed_by: entry.removed_by || entry.actor_email || entry.pruned_by || entry.actor || '',
+                inactive_days_threshold: removalThresholdDays,
+                removal_threshold_days: removalThresholdDays,
+                inactive_days_at_removal: inactiveDaysAtRemoval,
+                current_inactive_days: currentInactiveDays,
+                days_since_last_seen: currentInactiveDays,
+                days_since_added_at_removal: daysSinceAddedAtRemoval,
+                days_since_removal: daysSinceRemoval,
+                never_joined: neverJoined,
+                current_whitelisted: currentWhitelisted,
+                current_whitelist_name: entry.current_whitelist_name || null,
+                added_at: addedAt,
+                last_seen_at: lastSeenAtAtRemoval,
+                last_seen_at_at_removal: lastSeenAtAtRemoval,
+                current_last_seen_at: currentLastSeenAt,
+                note: entry.note || entry.reason || '',
+            };
+        },
+
+        normalizeLongTermInactivityAlert(entry) {
+            return {
+                name: entry.name || entry.player || '',
+                threshold_days: this.toNullableNumber(entry.threshold_days ?? entry.thresholdDays) ?? 100,
+                last_seen_at: entry.last_seen_at || entry.last_join_at || entry.last_login_at || null,
+                inactive_days: this.toNullableNumber(entry.inactive_days ?? entry.days_since_seen),
+                added_at: entry.added_at || entry.whitelisted_at || null,
+                days_since_added: this.toNullableNumber(entry.days_since_added ?? entry.whitelist_age_days),
+                last_pruned_at: entry.last_pruned_at || entry.removed_at || null,
+                removed_by: entry.removed_by || '',
+                current_whitelisted: entry.current_whitelisted !== false,
+                current_whitelist_name: entry.current_whitelist_name || null,
+                rewhitelisted_at: entry.rewhitelisted_at || entry.returned_at || null,
+                joined_after_rewhitelist: Boolean(entry.joined_after_rewhitelist),
+                needs_lands_review: entry.needs_lands_review !== false,
+                status: entry.status || 'lands_review_due',
+                protected_player: Boolean(entry.protected_player),
+                note: entry.note || entry.recommendation_reason || '',
+            };
+        },
+
+        normalizeRewhitelistHistoryEntry(entry) {
+            return {
+                id: entry.id || `${entry.name || entry.player || 'player'}-${entry.occurred_at || entry.rewhitelisted_at || 'unknown'}`,
+                name: entry.name || entry.player || '',
+                occurred_at: entry.occurred_at || entry.rewhitelisted_at || entry.returned_at || null,
+                actor_email: entry.actor_email || entry.actor || '',
+                actor_surface: entry.actor_surface || '',
+                source: entry.source || '',
+                previous_removed_at: entry.previous_removed_at || entry.removed_at || null,
+                previous_last_seen_at: entry.previous_last_seen_at || entry.last_seen_before_removal_at || null,
+                days_after_removal: this.toNullableNumber(entry.days_after_removal),
+                days_since_previous_seen: this.toNullableNumber(entry.days_since_previous_seen),
+                current_whitelisted: entry.current_whitelisted !== false,
+                current_whitelist_name: entry.current_whitelist_name || null,
+                joined_after_rewhitelist: Boolean(entry.joined_after_rewhitelist),
+                last_seen_after_rewhitelist_at: entry.last_seen_after_rewhitelist_at || null,
+                inferred: Boolean(entry.inferred),
+                note: entry.note || '',
+            };
+        },
+
+        isWhitelistAuditSelected(player) {
+            return this.whitelistAuditSelection.includes(player);
+        },
+
+        toggleWhitelistAuditSelection(player) {
+            if (!player) return;
+            if (this.isWhitelistAuditSelected(player)) {
+                this.whitelistAuditSelection = this.whitelistAuditSelection.filter((name) => name !== player);
+                return;
+            }
+            this.whitelistAuditSelection = [...this.whitelistAuditSelection, player];
+        },
+
+        toggleRecommendedWhitelistSelection() {
+            const recommendedNames = this.recommendedWhitelistAuditEntries.map((entry) => entry.name);
+            if (!recommendedNames.length) return;
+
+            if (this.allRecommendedWhitelistSelected) {
+                this.whitelistAuditSelection = this.whitelistAuditSelection.filter((name) => !recommendedNames.includes(name));
+                return;
+            }
+
+            this.whitelistAuditSelection = Array.from(new Set([
+                ...this.whitelistAuditSelection,
+                ...recommendedNames,
+            ]));
+        },
+
+        clearWhitelistAuditSelection() {
+            this.whitelistAuditSelection = [];
+        },
+
+        hasPermission(perm) {
+            return this.permissions.includes(perm);
+        },
+
+        hasModule(module) {
+            return this.visibleModules.includes(module);
+        },
+
+        hasAnyPermission() {
+            return this.permissions.length > 0;
+        },
+
+        showToast(message, type = 'info') {
+            this.toast = { show: true, message, type };
+            this.$nextTick(() => lucide.createIcons());
+            const duration = this.preferences.toast_duration_ms || 4000;
+            setTimeout(() => this.toast.show = false, duration);
+        }
+    }
+}
+// @formatter:on
+</script>
+{% endblock %}

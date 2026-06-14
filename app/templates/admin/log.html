@@ -1,0 +1,426 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Developer Log Viewer{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div x-data="devLogViewer()" x-init="init()" class="min-h-screen bg-[#050505] flex flex-col">
+    <!-- Minimal Header -->
+    <header class="border-b border-slate-700/30 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-10 px-4 py-2">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div class="flex w-full flex-wrap items-center gap-2 sm:gap-4 md:w-auto">
+                <a href="/minecraft/admin" class="text-slate-400 hover:text-white text-sm">← Admin</a>
+                <h1 class="text-sm font-mono text-green-400">Developer Log Viewer</h1>
+                <span class="text-xs px-2 py-0.5 rounded" 
+                    :class="wsConnected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
+                    x-text="wsConnected ? 'LIVE' : 'DISCONNECTED'"></span>
+            </div>
+            <div class="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center md:justify-end">
+                <!-- Font Size Controls -->
+                <div class="flex w-full items-center justify-between gap-1 text-xs text-slate-400 sm:w-auto sm:justify-start">
+                    <span>Font:</span>
+                    <button @click="decreaseFontSize()" class="px-2 py-1.5 sm:py-1 bg-slate-800 hover:bg-slate-700 rounded">−</button>
+                    <span class="w-12 text-center font-mono" x-text="fontSize + 'px'"></span>
+                    <button @click="increaseFontSize()" class="px-2 py-1.5 sm:py-1 bg-slate-800 hover:bg-slate-700 rounded">+</button>
+                </div>
+                <!-- Line Count -->
+                <span class="text-xs text-slate-500" x-text="logs.length + ' lines'"></span>
+                <span x-show="loadedLogFileMeta && loadedLogFileMeta.truncated"
+                    class="text-xs text-amber-300"
+                    x-text="`Showing last ${loadedLogFileMeta.lineLimit} lines`"></span>
+                <span x-show="logFileError" class="text-xs text-red-300" x-text="logFileError"></span>
+                <span x-show="logFileError && loadedLogFileMeta && loadedLogFileMeta.maxCompressedBytes"
+                    class="text-xs text-slate-500"
+                    x-text="`Archive preview limit: ${formatSize(loadedLogFileMeta.maxCompressedBytes)}`"></span>
+                <!-- Log File Selector -->
+                <div class="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:flex-row sm:items-center">
+                    <select x-model.number="logFileLineLimit" @change="selectedLogFile && loadSelectedLogFile()"
+                        class="w-full sm:w-auto text-xs px-2 py-2 sm:py-1 bg-slate-800 border border-slate-700 text-slate-300 rounded">
+                        <option value="500">500 lines</option>
+                        <option value="1000">1000 lines</option>
+                        <option value="2500">2500 lines</option>
+                        <option value="5000">5000 lines</option>
+                    </select>
+                    <select x-model="selectedLogFile" @change="loadSelectedLogFile()" 
+                        class="w-full sm:w-auto text-xs px-2 py-2 sm:py-1 bg-slate-800 border border-slate-700 text-slate-300 rounded">
+                        <option value="">-- Select Log File --</option>
+                        <template x-for="file in logFiles" :key="file.name">
+                            <option :value="file.name" x-text="file.name + ' (' + formatSize(file.size) + ')'"></option>
+                        </template>
+                    </select>
+                    <span x-show="logFiles.length === 0" class="text-xs text-yellow-400">No log files found</span>
+                    <button @click="fetchLogFiles()" class="w-full sm:w-auto text-xs px-2 py-2 sm:py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-400" title="Refresh list">
+                        🔄
+                    </button>
+                    <span x-show="loadingFile" class="text-xs text-blue-400">Loading...</span>
+                </div>
+                <!-- Auto-scroll toggle -->
+                <button @click="autoScroll = !autoScroll" 
+                    class="w-full sm:w-auto text-xs px-2 py-2 sm:py-1 rounded"
+                    :class="autoScroll ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400'">
+                    Auto-scroll: <span x-text="autoScroll ? 'ON' : 'OFF'"></span>
+                </button>
+                <!-- UltraCosmetics noise toggle -->
+                <button @click="toggleUltraCosmeticsFloatErrorFilter()"
+                    class="w-full sm:w-auto text-xs px-2 py-2 sm:py-1 rounded"
+                    :class="hideUltraCosmeticsFloatError ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-slate-700 text-slate-300 border border-slate-600/40'">
+                    Hide UltraCosmetics Float Error:
+                    <span x-text="hideUltraCosmeticsFloatError ? 'ON' : 'OFF'"></span>
+                </button>
+                <!-- Clear -->
+                <button @click="clearLogs()" class="w-full sm:w-auto text-xs px-2 py-2 sm:py-1 bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-red-300 rounded">
+                    Clear
+                </button>
+                {{ near.settings_button() }}
+            </div>
+        </div>
+    </header>
+
+    <!-- Log Content -->
+    <main class="flex-1 overflow-hidden relative">
+        <div id="log-container" 
+            class="h-full overflow-y-auto bg-[#0a0a0a] font-mono p-1"
+            :style="`font-size: ${fontSize}px; line-height: 1.1`"
+            @scroll="onScroll">
+            <!-- Rendered content goes here -->
+        </div>
+        
+        <div x-show="logs.length === 0" class="absolute inset-0 flex items-center justify-center text-slate-600 pointer-events-none">
+            Waiting for logs... (Server may not be running)
+        </div>
+    </main>
+
+    <!-- Scroll to bottom button -->
+    <button x-show="!autoScroll && !isNearBottom" @click="scrollToBottom()" x-transition
+        class="fixed bottom-4 right-4 bg-green-600/80 hover:bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg text-sm flex items-center gap-2 z-50">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+        Jump to bottom
+    </button>
+</div>
+
+<script>
+    function devLogViewer() {
+        return {
+            logs: [],
+            wsConnected: false,
+            ws: null,
+            fontSize: parseInt(localStorage.getItem('devLogFontSize') || '11'),
+            autoScroll: true,
+            isNearBottom: true,
+            lastLogHash: '',
+            loadingAll: false,
+            container: null,
+            logFiles: [],
+            selectedLogFile: '',
+            loadingFile: false,
+            logFileLineLimit: 1000,
+            loadedLogFileMeta: null,
+            logFileError: '',
+            hideUltraCosmeticsFloatError: false,
+            ultraFloatBlockActive: false,
+
+            init() {
+                this.container = document.getElementById('log-container');
+                this.connectWebSocket();
+                this.fetchLogFiles();
+                
+                // Watch for changes in logs and render
+                this.$watch('logs', (value) => {
+                    // Optimization: If array was cleared, clear DOM
+                    if (value.length === 0) {
+                        this.container.innerHTML = '';
+                        return;
+                    }
+                    
+                    // Optimization: If we just appended one log (common case)
+                    // We can't easily detect "append one" vs "replace all" in simple watch without prev value diff
+                    // But usually logs are pushed. 
+                    // For correctness and simplicity with "Load Full Logs", we might need to be careful.
+                    // Let's implement a custom render queue or just render chunks.
+                });
+            },
+
+            toggleUltraCosmeticsFloatErrorFilter() {
+                this.hideUltraCosmeticsFloatError = !this.hideUltraCosmeticsFloatError;
+                this.renderAllLogs();
+            },
+
+            isRconNoise(message) {
+                return !!message && (
+                    message.includes('RCON Client') ||
+                    message.includes('RCON Listener') ||
+                    message.includes('Thread RCON') ||
+                    message.includes('Rcon issued server command')
+                );
+            },
+
+            isTimestampedLogLine(message) {
+                return !!message && /^\[\d{2}:\d{2}:\d{2}\]/.test(message);
+            },
+
+            isUltraCosmeticsFloatHeader(message) {
+                return !!message &&
+                    message.includes('[UltraCosmetics]') &&
+                    message.includes('generated an exception') &&
+                    message.includes('Task #');
+            },
+
+            isUltraCosmeticsFloatException(message) {
+                return !!message && message.includes('java.lang.IllegalArgumentException: missing required data class java.lang.Float');
+            },
+
+            isUltraCosmeticsBlockEnd(message) {
+                return !!message && message.includes('at java.base/java.lang.Thread.run(');
+            },
+
+            shouldHideLog(log) {
+                const message = (log && typeof log.message === 'string') ? log.message : '';
+
+                if (this.isRconNoise(message)) {
+                    return true;
+                }
+
+                if (!this.hideUltraCosmeticsFloatError) {
+                    this.ultraFloatBlockActive = false;
+                    return false;
+                }
+
+                // If a new timestamped entry starts and it's not the same UltraCosmetics header,
+                // close any dangling stack-trace block before evaluating the line.
+                if (this.ultraFloatBlockActive && this.isTimestampedLogLine(message) && !this.isUltraCosmeticsFloatHeader(message)) {
+                    this.ultraFloatBlockActive = false;
+                }
+
+                if (this.ultraFloatBlockActive) {
+                    if (this.isUltraCosmeticsBlockEnd(message)) {
+                        this.ultraFloatBlockActive = false;
+                    }
+                    return true;
+                }
+
+                if (this.isUltraCosmeticsFloatHeader(message) || this.isUltraCosmeticsFloatException(message)) {
+                    this.ultraFloatBlockActive = true;
+                    if (this.isUltraCosmeticsBlockEnd(message)) {
+                        this.ultraFloatBlockActive = false;
+                    }
+                    return true;
+                }
+
+                return false;
+            },
+            
+            // Custom method to add log to DOM directly (bypassing Alpine x-for overhead)
+            appendLogToDom(log) {
+                if (this.shouldHideLog(log)) return;
+                
+                const div = document.createElement('div');
+                div.className = "whitespace-pre-wrap break-all";
+                // Style classes based on content
+                if (log.message) {
+                    if (log.message.includes('ERROR') || log.message.includes('Exception') || log.message.includes('SEVERE')) div.className += " text-red-400";
+                    else if (log.message.includes('WARN')) div.className += " text-yellow-400";
+                    else if (log.message.includes('INFO')) div.className += " text-cyan-300";
+                    else if (log.message.includes('[CORA]')) div.className += " text-purple-400";
+                    else div.className += " text-slate-400";
+                } else {
+                    div.className += " text-slate-400";
+                }
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.className = "text-slate-600 select-none mr-1";
+                timeSpan.textContent = log.time ? '[' + log.time + ']' : '';
+                
+                const msgSpan = document.createElement('span');
+                msgSpan.textContent = log.message || '';
+                
+                div.appendChild(timeSpan);
+                div.appendChild(msgSpan);
+                
+                this.container.appendChild(div);
+                
+                // Limit DOM nodes
+                if (this.container.children.length > 5000) {
+                    this.container.removeChild(this.container.firstChild);
+                }
+            },
+            
+            // Render entire array (for full log load)
+            renderAllLogs() {
+                this.container.innerHTML = '';
+                this.ultraFloatBlockActive = false;
+                const fragment = document.createDocumentFragment();
+                
+                this.logs.forEach(log => {
+                    if (this.shouldHideLog(log)) return;
+                    
+                    const div = document.createElement('div');
+                    div.className = "whitespace-pre-wrap break-all";
+                    if (log.message) {
+                        if (log.message.includes('ERROR') || log.message.includes('Exception') || log.message.includes('SEVERE')) div.className += " text-red-400";
+                        else if (log.message.includes('WARN')) div.className += " text-yellow-400";
+                        else if (log.message.includes('INFO')) div.className += " text-cyan-300";
+                        else if (log.message.includes('[CORA]')) div.className += " text-purple-400";
+                        else div.className += " text-slate-400";
+                    } else {
+                        div.className += " text-slate-400";
+                    }
+                    
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = "text-slate-600 select-none mr-1";
+                    timeSpan.textContent = log.time ? '[' + log.time + ']' : '';
+                    
+                    const msgSpan = document.createElement('span');
+                    msgSpan.textContent = log.message || '';
+                    
+                    div.appendChild(timeSpan);
+                    div.appendChild(msgSpan);
+                    fragment.appendChild(div);
+                });
+                
+                this.container.appendChild(fragment);
+                this.$nextTick(() => this.scrollToBottom());
+            },
+
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/minecraft/admin/ws/minecraft/raw-logs`;
+
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    this.wsConnected = true;
+                    console.log('Raw log WebSocket connected');
+                };
+
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'heartbeat') return;
+
+                    // Filter out RCON noise
+                    if (this.isRconNoise(data.message)) return;
+
+                    // Deduplication
+                    const logHash = `${data.time}:${data.message}`;
+                    if (logHash === this.lastLogHash) return;
+                    this.lastLogHash = logHash;
+
+                    this.logs.push(data);
+                    // Keep max 10000 lines in memory
+                    if (this.logs.length > 10000) {
+                        this.logs.shift(); // Remove from start
+                    }
+                    
+                    // Direct DOM manipulation
+                    this.appendLogToDom(data);
+
+                    if (this.autoScroll) {
+                        // Use requestAnimationFrame for smoother scrolling during high traffic
+                        requestAnimationFrame(() => this.scrollToBottom());
+                    }
+                };
+                
+                // ... (rest of websocket handlers)
+                this.ws.onclose = () => {
+                   this.wsConnected = false;
+                   setTimeout(() => this.connectWebSocket(), 3000);
+                };
+                this.ws.onerror = () => this.wsConnected = false;
+            },
+
+            onScroll() {
+                if (!this.container) return;
+                this.isNearBottom = this.container.scrollTop + this.container.clientHeight >= this.container.scrollHeight - 100;
+            },
+
+            scrollToBottom() {
+                if (this.container) {
+                    this.container.scrollTop = this.container.scrollHeight;
+                    this.isNearBottom = true;
+                }
+            },
+
+            increaseFontSize() {
+                if (this.fontSize < 20) {
+                    this.fontSize++;
+                    localStorage.setItem('devLogFontSize', this.fontSize);
+                }
+            },
+
+            decreaseFontSize() {
+                if (this.fontSize > 6) {
+                    this.fontSize--;
+                    localStorage.setItem('devLogFontSize', this.fontSize);
+                }
+            },
+
+            clearLogs() {
+                this.logs = [];
+                this.lastLogHash = '';
+                this.selectedLogFile = '';
+                this.loadedLogFileMeta = null;
+                this.logFileError = '';
+                this.ultraFloatBlockActive = false;
+                if (this.container) this.container.innerHTML = '';
+            },
+
+            async fetchLogFiles() {
+                try {
+                    const response = await fetch('/minecraft/admin/api/minecraft/server/log-files');
+                    const data = await response.json();
+                    if (data.files) {
+                        this.logFiles = data.files;
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch log files:', e);
+                }
+            },
+
+            async loadSelectedLogFile() {
+                if (!this.selectedLogFile) return;
+                
+                const filename = this.selectedLogFile; // Save before clearLogs() resets it
+                this.loadingFile = true;
+                this.clearLogs();
+                this.selectedLogFile = filename; // Restore selection
+                
+                try {
+                    const response = await fetch(`/minecraft/admin/api/minecraft/server/log-file/${encodeURIComponent(this.selectedLogFile)}?lines=${encodeURIComponent(this.logFileLineLimit)}`);
+                    const data = await response.json();
+                    if (!response.ok || data.status === 'error') {
+                        this.logFileError = data.error || data.message || 'Failed to load log file';
+                        this.loadedLogFileMeta = {
+                            truncated: !!data.truncated,
+                            lineLimit: data.line_limit || this.logFileLineLimit,
+                            maxCompressedBytes: data.max_compressed_bytes || null
+                        };
+                        return;
+                    }
+                    if (data.logs) {
+                        this.logs = data.logs;
+                        this.loadedLogFileMeta = {
+                            truncated: !!data.truncated,
+                            lineLimit: data.line_limit || this.logFileLineLimit,
+                            sourceLines: data.source_lines || null
+                        };
+                        this.renderAllLogs();
+                    }
+                } catch (e) {
+                    console.error('Failed to load log file:', e);
+                    this.logFileError = 'Failed to load log file';
+                } finally {
+                    this.loadingFile = false;
+                }
+            },
+
+            formatSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+        }
+    }
+</script>
+{% endblock %}

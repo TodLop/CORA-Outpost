@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: push blocked."
+echo "This repository is local-only by policy (AGENTS.md)."
+echo "Do not use remotes or push from this repository."
+exit 1

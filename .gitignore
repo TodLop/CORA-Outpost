@@ -1,0 +1,29 @@
+# === Credentials & Secrets ===
+.env
+credentials.json
+client_secret*.json
+token.json
+config_files/
+
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# === Project Data ===
+data/
+logs/
+*.log
+.omx/
+dist/public-release/
+backups/
+
+# === User Preferences (contain user data) ===
+user_prefs_*.json
+
+# === OS ===
+.DS_Store
+Thumbs.db

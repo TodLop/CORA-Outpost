@@ -1,0 +1,1547 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Server Analytics - Minecraft Admin{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<!-- Chart.js + plugins -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0"></script>
+
+<div x-data="analyticsPanel()" class="min-h-screen bg-[#050505]">
+    <!-- Header -->
+    <header class="border-b border-green-500/20 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <a href="/minecraft/admin" class="text-slate-400 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </a>
+                    <h1 class="font-orbitron text-xl md:text-2xl text-white">
+                        <span class="text-green-400">SERVER</span> ANALYTICS
+                    </h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="/minecraft/admin/log"
+                        class="px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg border border-purple-500/30 transition-all text-sm">
+                        Log
+                    </a>
+                    <a href="/minecraft/admin/console"
+                        class="px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg border border-cyan-500/30 transition-all text-sm">
+                        Console
+                    </a>
+                    <!-- Connection indicator -->
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full"
+                            :class="wsConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></span>
+                        <span class="text-xs" :class="wsConnected ? 'text-green-400' : 'text-red-400'"
+                            x-text="wsConnected ? 'LIVE' : 'DISCONNECTED'"></span>
+                    </div>
+                    {{ near.settings_button() }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Stat Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <!-- CPU -->
+            <div class="bg-[#0a0a0a] border border-green-500/20 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider">CPU (HOST)</span>
+                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold font-orbitron"
+                    :class="currentCpu > 80 ? 'text-red-400' : currentCpu > 50 ? 'text-yellow-400' : 'text-green-400'">
+                    <span x-text="currentCpu !== null ? currentCpu.toFixed(1) + '%' : '--'"></span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1"
+                    x-text="currentPlayers !== null ? currentPlayers + ' player(s)' : 'Offline'"></div>
+                <div class="text-[11px] text-slate-500"
+                    x-show="currentCpuRaw !== null && cpuLogicalCores !== null"
+                    x-text="(currentCpuRaw !== null && cpuLogicalCores !== null) ? ('raw ' + currentCpuRaw.toFixed(1) + '% (' + cpuLogicalCores + ' cores)') : ''"></div>
+            </div>
+
+            <!-- RAM -->
+            <div class="bg-[#0a0a0a] border border-blue-500/20 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider">RAM</span>
+                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold font-orbitron text-blue-400">
+                    <span x-text="currentRam !== null ? currentRam.toFixed(0) + ' MB' : '--'"></span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1"
+                    x-text="currentRam !== null ? (currentRam / 1024).toFixed(2) + ' GB' : ''"></div>
+            </div>
+
+            <!-- TPS -->
+            <div class="bg-[#0a0a0a] border border-emerald-500/20 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider">TPS</span>
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold font-orbitron"
+                    :class="currentTps !== null ? (currentTps < 15 ? 'text-red-400' : currentTps < 18 ? 'text-yellow-400' : 'text-emerald-400') : 'text-slate-500'">
+                    <span x-text="currentTps !== null ? currentTps.toFixed(1) : '--'"></span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">of 20.0 max</div>
+            </div>
+
+            <!-- MSPT -->
+            <div class="bg-[#0a0a0a] border border-orange-500/20 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider">MSPT</span>
+                    <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold font-orbitron"
+                    :class="currentMspt !== null ? (currentMspt > 40 ? 'text-red-400' : currentMspt > 25 ? 'text-yellow-400' : 'text-orange-400') : 'text-slate-500'">
+                    <span x-text="currentMspt !== null ? currentMspt.toFixed(1) + ' ms' : '--'"></span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">50ms = lag</div>
+            </div>
+
+            <!-- Disk -->
+            <div class="bg-[#0a0a0a] border border-amber-500/20 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider">Disk</span>
+                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold font-orbitron text-amber-400">
+                    <span x-text="currentDisk !== null ? (currentDisk > 1024 ? (currentDisk / 1024).toFixed(1) + ' GB' : currentDisk.toFixed(0) + ' MB') : '--'"></span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1"
+                    x-text="currentDisk !== null && currentDisk > 1024 ? currentDisk.toFixed(0) + ' MB' : ''"></div>
+            </div>
+        </div>
+
+        <!-- Chart Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="w-full sm:w-auto text-sm text-slate-400 sm:mr-2">Chart Controls:</span>
+            <button @click="toggleInteractionMode()"
+                class="w-full sm:w-auto sm:ml-auto px-3 py-2 sm:py-1.5 text-sm rounded-lg border transition-all"
+                :class="interactionMode === 'explore'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30'
+                    : 'bg-[#0a0a0a] text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'">
+                <span x-text="interactionMode === 'explore' ? 'Explore Mode' : 'Scroll Mode'"></span>
+            </button>
+            <button @click="resetZoom()" class="w-full sm:w-auto px-3 py-2 sm:py-1.5 text-sm rounded-lg border bg-[#0a0a0a] text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300 transition-all">
+                Reset Zoom
+            </button>
+        </div>
+        <div class="text-xs text-slate-500 space-y-1">
+            <div x-show="metricsStatusText" x-text="metricsStatusText"></div>
+            <div x-show="tpsStatusText" x-text="tpsStatusText"></div>
+            <div x-show="diskStatusText" x-text="diskStatusText"></div>
+        </div>
+        <details class="text-xs text-slate-400 bg-[#0a0a0a] border border-slate-800 rounded-lg p-3">
+            <summary class="cursor-pointer select-none text-slate-300">CPU Metrics Explained</summary>
+            <div class="mt-2 space-y-1 leading-relaxed">
+                <div>`cpu_percent_raw` (or `cpu_percent`) = process CPU usage.</div>
+                <div>Meaning: `100%` = one logical core fully used by this process.</div>
+                <div>`cpu_percent_normalized` = `cpu_percent_raw / logical_cores`.</div>
+                <div>Meaning: `100%` = full host CPU capacity (all logical cores saturated).</div>
+                <div x-show="cpuLogicalCores !== null"
+                     x-text="cpuLogicalCores !== null ? ('Detected logical cores: ' + cpuLogicalCores) : ''"></div>
+                <div x-show="cpuLogicalCores !== null"
+                     x-text="cpuLogicalCores !== null ? ('Example: raw 250% / ' + cpuLogicalCores + ' cores = ' + (250 / cpuLogicalCores).toFixed(1) + '% normalized') : ''"></div>
+                <div x-show="cpuSemanticsText" class="text-slate-500 break-words" x-text="'API note: ' + cpuSemanticsText"></div>
+            </div>
+        </details>
+
+        <!-- CPU & RAM Chart -->
+        <div class="bg-[#0a0a0a] border border-slate-700/50 rounded-xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h2 class="text-sm text-slate-400 uppercase tracking-wider">CPU (Host Normalized) & RAM Over Time</h2>
+                <div class="w-full md:w-auto overflow-x-auto">
+                    <div class="flex gap-1 min-w-max">
+                        <template x-for="r in metricsRangeOptions" :key="'metrics-range-' + r">
+                            <button @click="setRange('metrics', r)"
+                                class="px-2.5 py-1 text-xs rounded border transition-all"
+                                :class="chartRanges.metrics === r
+                                    ? 'bg-green-500/30 text-green-300 border-green-500/50'
+                                    : 'bg-[#0a0a0a] text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'"
+                                x-text="r"></button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="relative" style="height: 300px;">
+                <canvas id="metrics-chart"
+                    :style="interactionMode === 'explore' ? 'touch-action: none;' : 'touch-action: pan-y pinch-zoom;'"></canvas>
+            </div>
+        </div>
+
+        <!-- TPS & MSPT Chart -->
+        <div class="bg-[#0a0a0a] border border-slate-700/50 rounded-xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h2 class="text-sm text-slate-400 uppercase tracking-wider">TPS & MSPT Over Time</h2>
+                <div class="w-full md:w-auto overflow-x-auto">
+                    <div class="flex gap-1 min-w-max">
+                        <template x-for="r in tpsRangeOptions" :key="'tps-range-' + r">
+                            <button @click="setRange('tps', r)"
+                                class="px-2.5 py-1 text-xs rounded border transition-all"
+                                :class="chartRanges.tps === r
+                                    ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50'
+                                    : 'bg-[#0a0a0a] text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'"
+                                x-text="r"></button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="relative" style="height: 300px;">
+                <canvas id="tps-chart"
+                    :style="interactionMode === 'explore' ? 'touch-action: none;' : 'touch-action: pan-y pinch-zoom;'"></canvas>
+            </div>
+        </div>
+
+        <!-- Disk Size Chart -->
+        <div class="bg-[#0a0a0a] border border-slate-700/50 rounded-xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h2 class="text-sm text-slate-400 uppercase tracking-wider">Disk Usage Over Time</h2>
+                <div class="w-full md:w-auto overflow-x-auto">
+                    <div class="flex gap-1 min-w-max">
+                        <template x-for="r in diskRangeOptions" :key="'disk-range-' + r">
+                            <button @click="setRange('disk', r)"
+                                class="px-2.5 py-1 text-xs rounded border transition-all"
+                                :class="chartRanges.disk === r
+                                    ? 'bg-amber-500/30 text-amber-300 border-amber-500/50'
+                                    : 'bg-[#0a0a0a] text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'"
+                                x-text="r"></button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="relative" style="height: 220px;">
+                <canvas id="disk-chart"
+                    :style="interactionMode === 'explore' ? 'touch-action: none;' : 'touch-action: pan-y pinch-zoom;'"></canvas>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+function analyticsPanel() {
+    const chartStore = {
+        metrics: null,
+        tps: null,
+        disk: null,
+    };
+
+    return {
+        // State
+        wsConnected: false,
+        chartRanges: {
+            metrics: '1h',
+            tps: '1h',
+            disk: '30d',
+        },
+        metricsRangeOptions: ['1h', '6h', '24h', '7d', '30d', '90d', '1y'],
+        tpsRangeOptions: ['1h', '6h', '24h', '7d', '30d', '90d', '1y'],
+        diskRangeOptions: ['24h', '7d', '30d', '90d', '1y'],
+        currentCpu: null,
+        currentCpuRaw: null,
+        currentRam: null,
+        currentDisk: null,
+        currentPlayers: null,
+        currentTps: null,
+        currentMspt: null,
+        lastKnownTps: null,
+        lastKnownMspt: null,
+        cpuLogicalCores: null,
+        cpuSemanticsText: '',
+        metricsStatusText: '',
+        tpsStatusText: '',
+        diskStatusText: '',
+        metricsWindowBounds: null,
+        tpsWindowBounds: null,
+        diskWindowBounds: null,
+        interactionMode: 'scroll',
+        isMobileViewport: false,
+        isPageVisible: true,
+
+        // WebSocket
+        ws: null,
+        wsReconnectTimer: null,
+        liveUpdateBuffer: [],
+        liveFlushTimer: null,
+        liveFlushDelayMs: 180,
+        loadSeq: {
+            metrics: 0,
+            tps: 0,
+            disk: 0,
+        },
+        themePreferenceListener: null,
+        visibilityChangeListener: null,
+        isInitialized: false,
+
+        _getChart(kind) {
+            return chartStore[kind] || null;
+        },
+
+        _setChart(kind, chart) {
+            chartStore[kind] = chart || null;
+        },
+
+        async init() {
+            if (this.isInitialized) return;
+            this.isInitialized = true;
+
+            this.isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
+            this.isPageVisible = document.visibilityState !== 'hidden';
+            this.themePreferenceListener = () => this.refreshChartTheme();
+            this.visibilityChangeListener = () => this.handleVisibilityChange();
+            window.addEventListener('cora-preferences-loaded', this.themePreferenceListener);
+            document.addEventListener('visibilitychange', this.visibilityChangeListener);
+
+            try {
+                this.createCharts();
+            } catch (e) {
+                console.error('Chart init failed:', e);
+                const reason = e?.message ? ` (${e.message})` : '';
+                const status = `Chart initialization failed${reason}`;
+                this.metricsStatusText = status;
+                this.tpsStatusText = status;
+                this.diskStatusText = status;
+            }
+
+            try {
+                this.applyInteractionMode();
+            } catch (e) {
+                console.error('Chart interaction init failed:', e);
+            }
+
+            await this.loadCurrentMetrics();
+            await this.loadMetricCharts();
+            await this.loadDisk();
+            this.connectWebSocket();
+        },
+
+        destroy() {
+            this._clearLiveBuffer();
+            if (this.wsReconnectTimer) {
+                clearTimeout(this.wsReconnectTimer);
+                this.wsReconnectTimer = null;
+            }
+            if (this.ws) {
+                try {
+                    this.ws.onopen = null;
+                    this.ws.onmessage = null;
+                    this.ws.onclose = null;
+                    this.ws.onerror = null;
+                    this.ws.close();
+                } catch (e) {
+                    console.debug('WS cleanup failed:', e);
+                }
+                this.ws = null;
+            }
+            this._destroyCharts();
+            if (this.themePreferenceListener) {
+                window.removeEventListener('cora-preferences-loaded', this.themePreferenceListener);
+                this.themePreferenceListener = null;
+            }
+            if (this.visibilityChangeListener) {
+                document.removeEventListener('visibilitychange', this.visibilityChangeListener);
+                this.visibilityChangeListener = null;
+            }
+            this.isInitialized = false;
+        },
+
+        handleVisibilityChange() {
+            const visible = document.visibilityState !== 'hidden';
+            if (this.isPageVisible === visible) return;
+            this.isPageVisible = visible;
+
+            if (!visible) {
+                this._clearLiveBuffer();
+                return;
+            }
+
+            this.loadCurrentMetrics();
+            if (this.chartRanges.metrics === '1h') {
+                this.loadMetricsChart();
+            }
+            if (this.chartRanges.tps === '1h') {
+                this.loadTpsChart();
+            }
+        },
+
+        _chartDefaults() {
+            const isLightTheme = document.documentElement.classList.contains('pref-theme-light');
+            if (isLightTheme) {
+                return {
+                    backgroundColor: '#ffffff',
+                    borderColor: '#cbd5e1',
+                    gridColor: 'rgba(100, 116, 139, 0.24)',
+                    tickColor: '#334155',
+                    tooltipBackgroundColor: '#ffffff',
+                    tooltipTitleColor: '#0f172a',
+                    tooltipBodyColor: '#334155',
+                    tooltipBorderColor: 'rgba(100, 116, 139, 0.32)',
+                };
+            }
+            return {
+                backgroundColor: '#0a0a0a',
+                borderColor: '#334155',
+                gridColor: 'rgba(30, 41, 59, 0.5)',
+                tickColor: '#64748b',
+                tooltipBackgroundColor: '#1e293b',
+                tooltipTitleColor: '#e2e8f0',
+                tooltipBodyColor: '#cbd5e1',
+                tooltipBorderColor: '#334155',
+            };
+        },
+
+        _applyChartTheme(chart) {
+            if (!chart?.config?.options) return false;
+            const defaults = this._chartDefaults();
+            const options = chart.config.options;
+            let changed = false;
+
+            const setColor = (target, key, value) => {
+                if (!target || target[key] === value) return false;
+                target[key] = value;
+                return true;
+            };
+
+            const scales = options.scales || {};
+            for (const scaleKey of ['x', 'y', 'y1']) {
+                const scale = scales[scaleKey];
+                if (!scale) continue;
+
+                scale.ticks = (scale.ticks && typeof scale.ticks === 'object') ? scale.ticks : {};
+                changed = setColor(scale.ticks, 'color', defaults.tickColor) || changed;
+
+                if (scale.title && typeof scale.title === 'object') {
+                    changed = setColor(scale.title, 'color', defaults.tickColor) || changed;
+                }
+
+                scale.grid = (scale.grid && typeof scale.grid === 'object') ? scale.grid : {};
+                changed = setColor(scale.grid, 'color', defaults.gridColor) || changed;
+
+                scale.border = (scale.border && typeof scale.border === 'object') ? scale.border : {};
+                changed = setColor(scale.border, 'color', defaults.borderColor) || changed;
+            }
+
+            const plugins = options.plugins || {};
+            const legendLabels = plugins.legend?.labels;
+            if (legendLabels && typeof legendLabels === 'object') {
+                changed = setColor(legendLabels, 'color', defaults.tickColor) || changed;
+            }
+
+            const tooltip = plugins.tooltip;
+            if (tooltip && typeof tooltip === 'object') {
+                changed = setColor(tooltip, 'backgroundColor', defaults.tooltipBackgroundColor) || changed;
+                changed = setColor(tooltip, 'titleColor', defaults.tooltipTitleColor) || changed;
+                changed = setColor(tooltip, 'bodyColor', defaults.tooltipBodyColor) || changed;
+                changed = setColor(tooltip, 'borderColor', defaults.tooltipBorderColor) || changed;
+            }
+
+            return changed;
+        },
+
+        refreshChartTheme() {
+            for (const chart of [this._getChart('metrics'), this._getChart('tps'), this._getChart('disk')]) {
+                if (this._applyChartTheme(chart)) {
+                    chart.update('none');
+                }
+            }
+        },
+
+        _rangeWindowMs(range) {
+            const windows = {
+                '1h': 60 * 60 * 1000,
+                '6h': 6 * 60 * 60 * 1000,
+                '24h': 24 * 60 * 60 * 1000,
+                '7d': 7 * 24 * 60 * 60 * 1000,
+                '30d': 30 * 24 * 60 * 60 * 1000,
+                '90d': 90 * 24 * 60 * 60 * 1000,
+                '1y': 365 * 24 * 60 * 60 * 1000,
+            };
+            return windows[range] || windows['1h'];
+        },
+
+        _rangeTimeConfig(range) {
+            const configs = {
+                '1h': { unit: 'minute', stepSize: 5, maxTicksLimit: 13, tooltipFormat: 'HH:mm:ss' },
+                '6h': { unit: 'minute', stepSize: 30, maxTicksLimit: 13, tooltipFormat: 'MMM d, HH:mm' },
+                '24h': { unit: 'hour', stepSize: 2, maxTicksLimit: 13, tooltipFormat: 'MMM d, HH:mm' },
+                '7d': { unit: 'day', stepSize: 1, maxTicksLimit: 8, tooltipFormat: 'MMM d, HH:mm' },
+                '30d': { unit: 'day', stepSize: 3, maxTicksLimit: 11, tooltipFormat: 'MMM d, HH:mm' },
+                '90d': { unit: 'week', stepSize: 1, maxTicksLimit: 14, tooltipFormat: 'MMM d, yyyy HH:mm' },
+                '1y': { unit: 'month', stepSize: 1, maxTicksLimit: 13, tooltipFormat: 'MMM d, yyyy HH:mm' },
+            };
+            return configs[range] || configs['1h'];
+        },
+
+        _isLongRange(range) {
+            return range === '30d' || range === '90d' || range === '1y';
+        },
+
+        _lineTensionForRange(range) {
+            if (this._isLongRange(range)) return 0;
+            return this.isMobileViewport ? 0.25 : 0.3;
+        },
+
+        _nextLoadSeq(chartKey) {
+            this.loadSeq[chartKey] = (this.loadSeq[chartKey] || 0) + 1;
+            return this.loadSeq[chartKey];
+        },
+
+        _isLoadCurrent(chartKey, seq, range) {
+            return this.loadSeq[chartKey] === seq && this.chartRanges[chartKey] === range;
+        },
+
+        _toMs(value) {
+            if (value === null || value === undefined || value === '') return null;
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                return value.getTime();
+            }
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value > 1e12 ? value : value * 1000;
+            }
+            if (typeof value === 'string') {
+                const asNumber = Number(value);
+                if (Number.isFinite(asNumber) && value.trim() !== '') {
+                    return asNumber > 1e12 ? asNumber : asNumber * 1000;
+                }
+                const parsed = Date.parse(value);
+                if (!Number.isNaN(parsed)) {
+                    return parsed;
+                }
+            }
+            return null;
+        },
+
+        _toFiniteNumber(value) {
+            const numeric = Number(value);
+            return Number.isFinite(numeric) ? numeric : null;
+        },
+
+        _cpuPercent(row) {
+            if (!row || typeof row !== 'object') return null;
+            const normalizedCandidates = [
+                row.cpu_percent_normalized,
+                row.cpu_normalized_percent,
+                row.cpu_normalized,
+            ];
+            for (const rawValue of normalizedCandidates) {
+                const value = Number(rawValue);
+                if (Number.isFinite(value)) return Math.max(0, Math.min(100, value));
+            }
+
+            const rawCpu = Number(row.cpu_percent_raw ?? row.cpu_percent);
+            if (Number.isFinite(rawCpu)) {
+                const cores = Number(this.cpuLogicalCores);
+                if (Number.isFinite(cores) && cores > 0) {
+                    return Math.max(0, Math.min(100, rawCpu / cores));
+                }
+            }
+            return null;
+        },
+
+        _cpuRawPercent(row) {
+            if (!row || typeof row !== 'object') return null;
+            const candidates = [row.cpu_percent_raw, row.cpu_percent];
+            for (const rawValue of candidates) {
+                const value = Number(rawValue);
+                if (Number.isFinite(value)) return value;
+            }
+            return null;
+        },
+
+        _extractMetadata(payload) {
+            const metadata = payload && typeof payload.metadata === 'object' ? payload.metadata : {};
+            const windowMeta = metadata && typeof metadata.window === 'object' ? metadata.window : {};
+            const payloadWindow = payload && typeof payload.window === 'object' ? payload.window : {};
+            const windowInfo = Object.keys(windowMeta).length ? windowMeta : payloadWindow;
+
+            return {
+                table: metadata.table ?? payload?.table ?? null,
+                source: metadata.source ?? payload?.source ?? null,
+                resolutionSeconds: metadata.resolution_seconds ?? payload?.resolution_seconds ?? null,
+                timezone: metadata.timezone ?? payload?.timezone ?? windowInfo?.timezone ?? null,
+                windowStart: windowInfo?.start ?? metadata.window_start ?? payload?.window_start ?? null,
+                windowEnd: windowInfo?.end ?? metadata.window_end ?? payload?.window_end ?? null,
+                dataStart: windowInfo?.data_start ?? metadata.data_start ?? payload?.data_start ?? null,
+                dataEnd: windowInfo?.data_end ?? metadata.data_end ?? payload?.data_end ?? null,
+                cpuLogicalCores: metadata.cpu_logical_cores ?? payload?.cpu_logical_cores ?? null,
+                cpuProcessPercentMax: metadata.cpu_process_percent_max ?? payload?.cpu_process_percent_max ?? null,
+                cpuPercentSemantics: metadata.cpu_percent_semantics ?? payload?.cpu_percent_semantics ?? null,
+            };
+        },
+
+        _resolveWindowBounds(meta, range) {
+            const rangeMs = this._rangeWindowMs(range);
+            let min = this._toMs(meta?.windowStart);
+            let max = this._toMs(meta?.windowEnd);
+
+            if (min === null && max !== null) min = max - rangeMs;
+            if (max === null && min !== null) max = min + rangeMs;
+            if (min === null) min = this._toMs(meta?.dataStart);
+            if (max === null) max = this._toMs(meta?.dataEnd);
+
+            if (Number.isFinite(min) && Number.isFinite(max) && max >= min) {
+                return { min, max };
+            }
+            return null;
+        },
+
+        _expandBoundsToSeries(bounds, seriesList, range) {
+            let min = Number.isFinite(bounds?.min) ? bounds.min : null;
+            let max = Number.isFinite(bounds?.max) ? bounds.max : null;
+
+            if (Array.isArray(seriesList)) {
+                for (const series of seriesList) {
+                    if (!Array.isArray(series)) continue;
+                    for (const point of series) {
+                        const ts = this._toMs(point?.x);
+                        if (!Number.isFinite(ts)) continue;
+                        if (min === null || ts < min) min = ts;
+                        if (max === null || ts > max) max = ts;
+                    }
+                }
+            }
+
+            if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+            if (max <= min) {
+                max = min + Math.max(1000, Math.floor(this._rangeWindowMs(range) / 200));
+            }
+            return { min, max };
+        },
+
+        _formatResolution(seconds) {
+            const value = Number(seconds);
+            if (!Number.isFinite(value) || value <= 0) return null;
+            if (value % 3600 === 0) return `${value / 3600}h`;
+            if (value % 60 === 0) return `${value / 60}m`;
+            return `${value}s`;
+        },
+
+        _buildMetaStatusText(label, meta) {
+            const parts = [];
+            const sourceLabel = meta?.source || meta?.table;
+            const resolutionLabel = this._formatResolution(meta?.resolutionSeconds);
+            if (sourceLabel) parts.push(`source ${sourceLabel}`);
+            if (resolutionLabel) parts.push(`resolution ${resolutionLabel}`);
+            if (meta?.timezone) parts.push(`tz ${meta.timezone}`);
+            if (meta?.cpuLogicalCores) parts.push(`cpu normalized (${meta.cpuLogicalCores} cores)`);
+            return parts.length ? `${label}: ${parts.join(' • ')}` : '';
+        },
+
+        _applySeriesStyle(chart, range) {
+            if (!chart?.data?.datasets) return false;
+            const isLongRange = this._isLongRange(range);
+            const targetTension = this._lineTensionForRange(range);
+            let changed = false;
+
+            for (const dataset of chart.data.datasets) {
+                if (dataset.tension !== targetTension) {
+                    dataset.tension = targetTension;
+                    changed = true;
+                }
+                if (dataset.cubicInterpolationMode !== 'monotone') {
+                    dataset.cubicInterpolationMode = 'monotone';
+                    changed = true;
+                }
+                const targetFill = !isLongRange;
+                if (dataset.fill !== targetFill) {
+                    dataset.fill = targetFill;
+                    changed = true;
+                }
+            }
+
+            return changed;
+        },
+
+        _applyPerformanceMode(chart, range) {
+            if (!chart?.config?.options?.plugins) return false;
+            const isLongRange = this._isLongRange(range);
+            const targetSamples = this.isMobileViewport ? 240 : 420;
+            const targetThreshold = this.isMobileViewport ? 360 : 700;
+            const plugins = chart.config.options.plugins;
+            const current = (plugins.decimation && typeof plugins.decimation === 'object')
+                ? plugins.decimation
+                : {};
+            const next = {
+                enabled: isLongRange,
+                algorithm: 'lttb',
+                samples: targetSamples,
+                threshold: targetThreshold,
+            };
+            const changed = (
+                current.enabled !== next.enabled ||
+                current.algorithm !== next.algorithm ||
+                current.samples !== next.samples ||
+                current.threshold !== next.threshold
+            );
+            if (changed) {
+                plugins.decimation = next;
+            }
+            return changed;
+        },
+
+        _toMetricSeries(metrics) {
+            const cpuData = [];
+            const ramData = [];
+            const tpsData = [];
+            const msptData = [];
+
+            for (const metric of metrics) {
+                const t = Number(metric?.timestamp) * 1000;
+                if (!Number.isFinite(t)) continue;
+
+                const cpuPercent = this._toFiniteNumber(this._cpuPercent(metric));
+                if (cpuPercent !== null) cpuData.push({ x: t, y: cpuPercent });
+                const ram = this._toFiniteNumber(metric?.ram_mb);
+                const tps = this._toFiniteNumber(metric?.tps);
+                const mspt = this._toFiniteNumber(metric?.mspt);
+                if (ram !== null) ramData.push({ x: t, y: ram });
+                if (tps !== null) tpsData.push({ x: t, y: tps });
+                if (mspt !== null) msptData.push({ x: t, y: mspt });
+            }
+
+            return { cpuData, ramData, tpsData, msptData };
+        },
+
+        _withFallbackTpsSeries(series, windowBounds, range) {
+            const tpsData = this._sanitizeSeriesPoints(series?.tpsData);
+            const msptData = this._sanitizeSeriesPoints(series?.msptData);
+            const fallbackEnd = Number.isFinite(windowBounds?.max) ? windowBounds.max : Date.now();
+            let fallbackStart = Number.isFinite(windowBounds?.min)
+                ? windowBounds.min
+                : (fallbackEnd - this._rangeWindowMs(range));
+            if (fallbackStart >= fallbackEnd) {
+                fallbackStart = fallbackEnd - 1000;
+            }
+
+            const fallbackTps = this._toFiniteNumber(this.lastKnownTps ?? this.currentTps);
+            const fallbackMspt = this._toFiniteNumber(this.lastKnownMspt ?? this.currentMspt);
+
+            if (tpsData.length === 0 && fallbackTps !== null) {
+                tpsData.push({ x: fallbackStart, y: fallbackTps }, { x: fallbackEnd, y: fallbackTps });
+            }
+            if (msptData.length === 0 && fallbackMspt !== null) {
+                msptData.push({ x: fallbackStart, y: fallbackMspt }, { x: fallbackEnd, y: fallbackMspt });
+            }
+            return {
+                tpsData: this._ensureRenderableSeries(tpsData, fallbackEnd),
+                msptData: this._ensureRenderableSeries(msptData, fallbackEnd),
+            };
+        },
+
+        _ensureRenderableSeries(points, fallbackEnd = Date.now()) {
+            if (!Array.isArray(points) || points.length === 0) return [];
+            if (points.length >= 2) return points;
+            const only = points[0];
+            if (!only || !Number.isFinite(only.x)) return [];
+            return [
+                only,
+                { x: Math.max(fallbackEnd, only.x + 1000), y: only.y },
+            ];
+        },
+
+        _applyXAxisRange(chart, range, bounds) {
+            if (!chart?.config?.options?.scales?.x) return false;
+            const xScale = chart.config.options.scales.x;
+            const xTime = (xScale.time && typeof xScale.time === 'object') ? xScale.time : (xScale.time = {});
+            const xTicks = (xScale.ticks && typeof xScale.ticks === 'object') ? xScale.ticks : (xScale.ticks = {});
+
+            let changed = false;
+
+            if (chart.$appliedRange !== range) {
+                const rangeConfig = this._rangeTimeConfig(range);
+                if (xTime.unit !== rangeConfig.unit) {
+                    xTime.unit = rangeConfig.unit;
+                    changed = true;
+                }
+                if (xTime.stepSize !== rangeConfig.stepSize) {
+                    xTime.stepSize = rangeConfig.stepSize;
+                    changed = true;
+                }
+                if (xTime.tooltipFormat !== rangeConfig.tooltipFormat) {
+                    xTime.tooltipFormat = rangeConfig.tooltipFormat;
+                    changed = true;
+                }
+                if (xTicks.maxTicksLimit !== rangeConfig.maxTicksLimit) {
+                    xTicks.maxTicksLimit = rangeConfig.maxTicksLimit;
+                    changed = true;
+                }
+                if (xTicks.autoSkip !== true) {
+                    xTicks.autoSkip = true;
+                    changed = true;
+                }
+                chart.$appliedRange = range;
+            }
+
+            const hasBounds = bounds && Number.isFinite(bounds.min) && Number.isFinite(bounds.max);
+            const boundsKey = hasBounds ? `${bounds.min}:${bounds.max}` : 'auto';
+
+            if (chart.$appliedBoundsKey !== boundsKey) {
+                if (hasBounds) {
+                    if (xScale.min !== bounds.min) {
+                        xScale.min = bounds.min;
+                        changed = true;
+                    }
+                    if (xScale.max !== bounds.max) {
+                        xScale.max = bounds.max;
+                        changed = true;
+                    }
+                } else {
+                    if (Object.prototype.hasOwnProperty.call(xScale, 'min')) {
+                        delete xScale.min;
+                        changed = true;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(xScale, 'max')) {
+                        delete xScale.max;
+                        changed = true;
+                    }
+                }
+                chart.$appliedBoundsKey = boundsKey;
+            }
+
+            return changed;
+        },
+
+        _destroyCharts() {
+            for (const chart of [this._getChart('metrics'), this._getChart('tps'), this._getChart('disk')]) {
+                if (!chart) continue;
+                try {
+                    chart.destroy();
+                } catch (e) {
+                    console.debug('Chart destroy failed:', e);
+                }
+            }
+            this._setChart('metrics', null);
+            this._setChart('tps', null);
+            this._setChart('disk', null);
+        },
+
+        _pruneDatasetOlderThan(points, cutoffMs) {
+            if (!Array.isArray(points) || points.length === 0) return false;
+            let trimCount = 0;
+            for (const point of points) {
+                const pointMs = this._toMs(point?.x);
+                if (pointMs === null || pointMs < cutoffMs) {
+                    trimCount += 1;
+                } else {
+                    break;
+                }
+            }
+            if (trimCount > 0) {
+                points.splice(0, trimCount);
+                return true;
+            }
+            return false;
+        },
+
+        _sanitizeSeriesPoints(points) {
+            if (!Array.isArray(points)) return [];
+            const sanitized = [];
+            for (const point of points) {
+                const x = this._toMs(point?.x);
+                const y = this._toFiniteNumber(point?.y);
+                if (Number.isFinite(x) && y !== null) {
+                    sanitized.push({ x, y });
+                }
+            }
+            return sanitized;
+        },
+
+        _syncChartInteraction(chart) {
+            if (!chart) return false;
+            const exploreMode = this.interactionMode === 'explore';
+            let changed = false;
+
+            const zoomPlugin = chart.config?.options?.plugins?.zoom;
+            if (zoomPlugin && typeof zoomPlugin === 'object') {
+                zoomPlugin.pan = (zoomPlugin.pan && typeof zoomPlugin.pan === 'object') ? zoomPlugin.pan : {};
+                zoomPlugin.zoom = (zoomPlugin.zoom && typeof zoomPlugin.zoom === 'object') ? zoomPlugin.zoom : {};
+                zoomPlugin.zoom.wheel = (zoomPlugin.zoom.wheel && typeof zoomPlugin.zoom.wheel === 'object') ? zoomPlugin.zoom.wheel : {};
+                zoomPlugin.zoom.pinch = (zoomPlugin.zoom.pinch && typeof zoomPlugin.zoom.pinch === 'object') ? zoomPlugin.zoom.pinch : {};
+
+                if (zoomPlugin.pan.enabled !== exploreMode) {
+                    zoomPlugin.pan.enabled = exploreMode;
+                    changed = true;
+                }
+                if (zoomPlugin.pan.mode !== 'x') {
+                    zoomPlugin.pan.mode = 'x';
+                    changed = true;
+                }
+                if (zoomPlugin.zoom.mode !== 'x') {
+                    zoomPlugin.zoom.mode = 'x';
+                    changed = true;
+                }
+                if (zoomPlugin.zoom.wheel.enabled !== exploreMode) {
+                    zoomPlugin.zoom.wheel.enabled = exploreMode;
+                    changed = true;
+                }
+                if (zoomPlugin.zoom.pinch.enabled !== exploreMode) {
+                    zoomPlugin.zoom.pinch.enabled = exploreMode;
+                    changed = true;
+                }
+            }
+
+            if (chart.canvas) {
+                const touchAction = exploreMode ? 'none' : 'pan-y pinch-zoom';
+                if (chart.canvas.style.touchAction !== touchAction) {
+                    chart.canvas.style.touchAction = touchAction;
+                }
+            }
+            return changed;
+        },
+
+        applyInteractionMode() {
+            const metricsChart = this._getChart('metrics');
+            const tpsChart = this._getChart('tps');
+            const diskChart = this._getChart('disk');
+            let changed = false;
+            changed = this._syncChartInteraction(metricsChart) || changed;
+            changed = this._syncChartInteraction(tpsChart) || changed;
+            changed = this._syncChartInteraction(diskChart) || changed;
+            if (changed) {
+                metricsChart?.update('none');
+                tpsChart?.update('none');
+                diskChart?.update('none');
+            }
+        },
+
+        toggleInteractionMode() {
+            this.interactionMode = this.interactionMode === 'explore' ? 'scroll' : 'explore';
+            this.applyInteractionMode();
+        },
+
+        _queueLiveMetric(data) {
+            const t = Number(data.timestamp) * 1000;
+            if (!Number.isFinite(t)) return;
+
+            this.liveUpdateBuffer.push({
+                t,
+                cpu: this._toFiniteNumber(this._cpuPercent(data)),
+                ram: this._toFiniteNumber(data.ram_mb),
+                tps: this._toFiniteNumber(data.tps),
+                mspt: this._toFiniteNumber(data.mspt),
+            });
+
+            if (!this.liveFlushTimer) {
+                this.liveFlushTimer = setTimeout(() => {
+                    this.liveFlushTimer = null;
+                    this._flushLiveUpdates();
+                }, this.liveFlushDelayMs);
+            }
+        },
+
+        _clearLiveBuffer() {
+            this.liveUpdateBuffer.length = 0;
+            if (this.liveFlushTimer) {
+                clearTimeout(this.liveFlushTimer);
+                this.liveFlushTimer = null;
+            }
+        },
+
+        _flushLiveUpdates() {
+            if (this.liveUpdateBuffer.length === 0) {
+                this.liveUpdateBuffer.length = 0;
+                return;
+            }
+            if (!this.isPageVisible) {
+                this.liveUpdateBuffer.length = 0;
+                return;
+            }
+
+            const metricsLive = this.chartRanges.metrics === '1h';
+            const tpsLive = this.chartRanges.tps === '1h';
+            if (!metricsLive && !tpsLive) {
+                this.liveUpdateBuffer.length = 0;
+                return;
+            }
+
+            const batch = this.liveUpdateBuffer;
+            this.liveUpdateBuffer = [];
+
+            const metricsChart = this._getChart('metrics');
+            const tpsChart = this._getChart('tps');
+            const metricsCpuPoints = metricsChart?.data?.datasets?.[0]?.data;
+            const metricsRamPoints = metricsChart?.data?.datasets?.[1]?.data;
+            const tpsPoints = tpsChart?.data?.datasets?.[0]?.data;
+            const msptPoints = tpsChart?.data?.datasets?.[1]?.data;
+            if (metricsLive && (!Array.isArray(metricsCpuPoints) || !Array.isArray(metricsRamPoints))) return;
+            if (tpsLive && (!Array.isArray(tpsPoints) || !Array.isArray(msptPoints))) return;
+
+            const nextMetricsCpuPoints = metricsLive ? metricsCpuPoints.slice() : null;
+            const nextMetricsRamPoints = metricsLive ? metricsRamPoints.slice() : null;
+            const nextTpsPoints = tpsLive ? tpsPoints.slice() : null;
+            const nextMsptPoints = tpsLive ? msptPoints.slice() : null;
+
+            let latestMetricsTs = null;
+            let latestTpsTs = null;
+            for (const point of batch) {
+                if (!Number.isFinite(point?.t)) continue;
+                let appendedMetricsPoint = false;
+                let appendedTpsPoint = false;
+                if (metricsLive && point.cpu !== null && point.cpu !== undefined) {
+                    nextMetricsCpuPoints.push({ x: point.t, y: point.cpu });
+                    appendedMetricsPoint = true;
+                }
+                if (metricsLive && point.ram !== null && point.ram !== undefined) {
+                    nextMetricsRamPoints.push({ x: point.t, y: point.ram });
+                    appendedMetricsPoint = true;
+                }
+                if (tpsLive && point.tps !== null && point.tps !== undefined) {
+                    nextTpsPoints.push({ x: point.t, y: point.tps });
+                    appendedTpsPoint = true;
+                }
+                if (tpsLive && point.mspt !== null && point.mspt !== undefined) {
+                    nextMsptPoints.push({ x: point.t, y: point.mspt });
+                    appendedTpsPoint = true;
+                }
+
+                if (appendedMetricsPoint) {
+                    latestMetricsTs = point.t;
+                }
+                if (appendedTpsPoint) {
+                    latestTpsTs = point.t;
+                }
+            }
+
+            if (metricsLive) {
+                if (Number.isFinite(latestMetricsTs)) {
+                    const cutoff = latestMetricsTs - this._rangeWindowMs('1h');
+                    const liveWindow = { min: cutoff, max: latestMetricsTs };
+                    this._pruneDatasetOlderThan(nextMetricsCpuPoints, cutoff);
+                    this._pruneDatasetOlderThan(nextMetricsRamPoints, cutoff);
+                    metricsChart.data.datasets[0].data = this._sanitizeSeriesPoints(nextMetricsCpuPoints);
+                    metricsChart.data.datasets[1].data = this._sanitizeSeriesPoints(nextMetricsRamPoints);
+                    this._applyXAxisRange(metricsChart, '1h', liveWindow);
+                    metricsChart?.update('none');
+                    this.metricsWindowBounds = liveWindow;
+                }
+            }
+
+            if (tpsLive) {
+                if (Number.isFinite(latestTpsTs)) {
+                    const cutoff = latestTpsTs - this._rangeWindowMs('1h');
+                    const liveWindow = { min: cutoff, max: latestTpsTs };
+                    this._pruneDatasetOlderThan(nextTpsPoints, cutoff);
+                    this._pruneDatasetOlderThan(nextMsptPoints, cutoff);
+                    const sanitizedTps = this._sanitizeSeriesPoints(nextTpsPoints);
+                    const sanitizedMspt = this._sanitizeSeriesPoints(nextMsptPoints);
+                    tpsChart.data.datasets[0].data = this._ensureRenderableSeries(sanitizedTps, latestTpsTs);
+                    tpsChart.data.datasets[1].data = this._ensureRenderableSeries(sanitizedMspt, latestTpsTs);
+                    this._applyXAxisRange(tpsChart, '1h', liveWindow);
+                    tpsChart?.update('none');
+                    this.tpsWindowBounds = liveWindow;
+                }
+            }
+        },
+
+        createCharts() {
+            this._destroyCharts();
+            const pointHitRadius = this.isMobileViewport ? 2 : 4;
+            const metricsLineTension = this._lineTensionForRange(this.chartRanges.metrics);
+            const tpsLineTension = this._lineTensionForRange(this.chartRanges.tps);
+            const diskLineTension = this._lineTensionForRange(this.chartRanges.disk);
+
+            // CPU & RAM dual-axis chart
+            const metricsCanvas = document.getElementById('metrics-chart');
+            Chart.getChart(metricsCanvas)?.destroy();
+            const metricsCtx = metricsCanvas.getContext('2d');
+            const metricsChart = new Chart(metricsCtx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'CPU % (host)',
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            pointHitRadius,
+                            tension: metricsLineTension,
+                            fill: !this._isLongRange(this.chartRanges.metrics),
+                            yAxisID: 'y',
+                            data: [],
+                        },
+                        {
+                            label: 'RAM MB',
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            pointHitRadius,
+                            tension: metricsLineTension,
+                            fill: !this._isLongRange(this.chartRanges.metrics),
+                            yAxisID: 'y1',
+                            data: [],
+                        }
+                    ]
+                },
+                options: this._timeChartOptions('CPU %', 'RAM MB', {
+                    yMin: 0, yMax: 100, yLabel: 'CPU % (host)',
+                    y1Label: 'RAM (MB)',
+                }, this.chartRanges.metrics),
+            });
+            this._setChart('metrics', metricsChart);
+
+            // TPS & MSPT dual-axis chart
+            const tpsCanvas = document.getElementById('tps-chart');
+            Chart.getChart(tpsCanvas)?.destroy();
+            const tpsCtx = tpsCanvas.getContext('2d');
+            const tpsChart = new Chart(tpsCtx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'TPS',
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 1.8,
+                            pointRadius: 1.2,
+                            pointHitRadius,
+                            tension: tpsLineTension,
+                            fill: !this._isLongRange(this.chartRanges.tps),
+                            yAxisID: 'y',
+                            data: [],
+                        },
+                        {
+                            label: 'MSPT',
+                            borderColor: '#f97316',
+                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                            borderWidth: 1.8,
+                            pointRadius: 1.2,
+                            pointHitRadius,
+                            tension: tpsLineTension,
+                            fill: !this._isLongRange(this.chartRanges.tps),
+                            yAxisID: 'y1',
+                            data: [],
+                        }
+                    ]
+                },
+                options: this._timeChartOptions('TPS', 'MSPT', {
+                    yMin: 0, yMax: 22, yLabel: 'TPS',
+                    y1Label: 'MSPT (ms)',
+                }, this.chartRanges.tps),
+            });
+            this._setChart('tps', tpsChart);
+
+            // Disk area chart
+            const diskCanvas = document.getElementById('disk-chart');
+            Chart.getChart(diskCanvas)?.destroy();
+            const diskCtx = diskCanvas.getContext('2d');
+            const diskChart = new Chart(diskCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Disk MB',
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHitRadius,
+                        tension: diskLineTension,
+                        fill: !this._isLongRange(this.chartRanges.disk),
+                        data: [],
+                    }]
+                },
+                options: this._timeChartOptions('Disk', null, {
+                    yMin: 0, yLabel: 'Size (MB)',
+                }, this.chartRanges.disk),
+            });
+            this._setChart('disk', diskChart);
+        },
+
+        _timeChartOptions(leftLabel, rightLabel, opts = {}, range = '1h') {
+            const defaults = this._chartDefaults();
+            const rangeConfig = this._rangeTimeConfig(range);
+            const exploreMode = this.interactionMode === 'explore';
+            const useDecimation = this._isLongRange(range);
+            const scales = {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: rangeConfig.unit,
+                        stepSize: rangeConfig.stepSize,
+                        tooltipFormat: rangeConfig.tooltipFormat,
+                    },
+                    ticks: { color: defaults.tickColor, maxTicksLimit: rangeConfig.maxTicksLimit },
+                    grid: { color: defaults.gridColor },
+                    border: { color: defaults.borderColor },
+                },
+                y: {
+                    position: 'left',
+                    title: { display: true, text: opts.yLabel || leftLabel, color: defaults.tickColor },
+                    ticks: { color: defaults.tickColor },
+                    grid: { color: defaults.gridColor },
+                    border: { color: defaults.borderColor },
+                    min: opts.yMin,
+                    max: opts.yMax,
+                },
+            };
+
+            if (rightLabel) {
+                scales.y1 = {
+                    position: 'right',
+                    title: { display: true, text: opts.y1Label || rightLabel, color: defaults.tickColor },
+                    ticks: { color: defaults.tickColor },
+                    grid: { drawOnChartArea: false },
+                    border: { color: defaults.borderColor },
+                };
+            }
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                normalized: true,
+                interaction: { mode: 'index', intersect: false },
+                scales,
+                plugins: {
+                    legend: {
+                        labels: { color: defaults.tickColor, usePointStyle: true, pointStyle: 'line' },
+                    },
+                    tooltip: {
+                        backgroundColor: defaults.tooltipBackgroundColor,
+                        titleColor: defaults.tooltipTitleColor,
+                        bodyColor: defaults.tooltipBodyColor,
+                        borderColor: defaults.tooltipBorderColor,
+                        borderWidth: 1,
+                    },
+                    zoom: {
+                        pan: { enabled: exploreMode, mode: 'x' },
+                        zoom: {
+                            wheel: { enabled: exploreMode },
+                            pinch: { enabled: exploreMode },
+                            mode: 'x',
+                        },
+                    },
+                    decimation: {
+                        enabled: useDecimation,
+                        algorithm: 'lttb',
+                        samples: this.isMobileViewport ? 240 : 420,
+                        threshold: this.isMobileViewport ? 360 : 700,
+                    },
+                },
+            };
+
+            if (this.isMobileViewport) {
+                options.animation = false;
+            }
+
+            return options;
+        },
+
+        async loadCurrentMetrics() {
+            try {
+                const resp = await fetch('/minecraft/admin/api/analytics/current');
+                const data = await resp.json();
+                if (data.metric) {
+                    this.currentCpu = this._cpuPercent(data.metric);
+                    this.currentCpuRaw = this._cpuRawPercent(data.metric);
+                    this.currentRam = data.metric.ram_mb;
+                    this.currentPlayers = data.metric.players;
+                    this.currentTps = this._toFiniteNumber(data.metric.tps);
+                    this.currentMspt = this._toFiniteNumber(data.metric.mspt);
+                    if (this.currentTps !== null) this.lastKnownTps = this.currentTps;
+                    if (this.currentMspt !== null) this.lastKnownMspt = this.currentMspt;
+                }
+                const currentMeta = this._extractMetadata(data);
+                if (currentMeta.cpuLogicalCores !== null) this.cpuLogicalCores = currentMeta.cpuLogicalCores;
+                if (currentMeta.cpuPercentSemantics) this.cpuSemanticsText = currentMeta.cpuPercentSemantics;
+                if (data.disk_mb !== null) {
+                    this.currentDisk = data.disk_mb;
+                }
+            } catch (e) {
+                console.error('Failed to load current metrics:', e);
+            }
+        },
+
+        async _fetchMetricsRange(range) {
+            const resp = await fetch(`/minecraft/admin/api/analytics/metrics?range=${range}`);
+            if (!resp.ok) {
+                throw new Error(`Metrics API HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+            if (data?.status && data.status !== 'ok') {
+                throw new Error(`Metrics API status ${data.status}`);
+            }
+            return data;
+        },
+
+        async _fetchTpsRange(range) {
+            try {
+                const resp = await fetch(`/minecraft/admin/api/analytics/tps?range=${range}`);
+                if (!resp.ok) {
+                    throw new Error(`TPS API HTTP ${resp.status}`);
+                }
+                const data = await resp.json();
+                if (data?.status && data.status !== 'ok') {
+                    throw new Error(`TPS API status ${data.status}`);
+                }
+                return data;
+            } catch (primaryError) {
+                console.warn('TPS API failed; falling back to metrics API:', primaryError);
+                const fallback = await this._fetchMetricsRange(range);
+                return {
+                    ...fallback,
+                    tps_metrics: Array.isArray(fallback?.metrics) ? fallback.metrics : [],
+                    fallback_source: 'metrics',
+                };
+            }
+        },
+
+        async loadMetricCharts() {
+            await Promise.all([this.loadMetricsChart(), this.loadTpsChart()]);
+        },
+
+        async loadMetricsChart() {
+            const metricsChart = this._getChart('metrics');
+            if (!metricsChart) return;
+            const range = this.chartRanges.metrics;
+            const seq = this._nextLoadSeq('metrics');
+            try {
+                const data = await this._fetchMetricsRange(range);
+                if (!this._isLoadCurrent('metrics', seq, range)) return;
+                const metadata = this._extractMetadata(data);
+                const windowBounds = this._resolveWindowBounds(metadata, range);
+                if (metadata.cpuLogicalCores !== null) this.cpuLogicalCores = metadata.cpuLogicalCores;
+                if (metadata.cpuPercentSemantics) this.cpuSemanticsText = metadata.cpuPercentSemantics;
+
+                const metrics = Array.isArray(data.metrics) ? data.metrics : [];
+                const series = this._toMetricSeries(metrics);
+                metricsChart.data.datasets[0].data = series.cpuData;
+                metricsChart.data.datasets[1].data = series.ramData;
+                this._applySeriesStyle(metricsChart, range);
+                this._applyPerformanceMode(metricsChart, range);
+                this._applyXAxisRange(metricsChart, range, windowBounds);
+                metricsChart.update('none');
+
+                this.metricsWindowBounds = windowBounds;
+                this.metricsStatusText = this._buildMetaStatusText(`Metrics (${range})`, metadata);
+            } catch (e) {
+                if (!this._isLoadCurrent('metrics', seq, range)) return;
+                this.metricsStatusText = '';
+                this.metricsWindowBounds = null;
+                console.error('Failed to load metrics:', e);
+            }
+        },
+
+        async loadTpsChart() {
+            const tpsChart = this._getChart('tps');
+            if (!tpsChart) return;
+            const range = this.chartRanges.tps;
+            const seq = this._nextLoadSeq('tps');
+            try {
+                const data = await this._fetchTpsRange(range);
+                if (!this._isLoadCurrent('tps', seq, range)) return;
+                const metadata = this._extractMetadata(data);
+                const windowBounds = this._resolveWindowBounds(metadata, range);
+
+                const metrics = Array.isArray(data.tps_metrics)
+                    ? data.tps_metrics
+                    : (Array.isArray(data.metrics) ? data.metrics : []);
+                const series = this._toMetricSeries(metrics);
+                const usedMetricsFallback = data?.fallback_source === 'metrics';
+                const hasRealTpsPoints = series.tpsData.length > 0 || series.msptData.length > 0;
+                const tpsSeries = (usedMetricsFallback && !hasRealTpsPoints)
+                    ? { tpsData: [], msptData: [] }
+                    : this._withFallbackTpsSeries(series, windowBounds, range);
+                const effectiveBounds = this._expandBoundsToSeries(
+                    windowBounds,
+                    [tpsSeries.tpsData, tpsSeries.msptData],
+                    range
+                );
+                tpsChart.data.datasets[0].data = tpsSeries.tpsData;
+                tpsChart.data.datasets[1].data = tpsSeries.msptData;
+                this._applySeriesStyle(tpsChart, range);
+                this._applyPerformanceMode(tpsChart, range);
+                this._applyXAxisRange(tpsChart, range, effectiveBounds);
+                tpsChart.update('none');
+
+                this.tpsWindowBounds = effectiveBounds;
+                const baseStatus = this._buildMetaStatusText(`TPS/MSPT (${range})`, metadata);
+                if (usedMetricsFallback && !hasRealTpsPoints) {
+                    this.tpsStatusText = `${baseStatus}${baseStatus ? ' • ' : ''}TPS API unavailable, no TPS/MSPT samples in metrics fallback`;
+                } else if (usedMetricsFallback) {
+                    this.tpsStatusText = `${baseStatus}${baseStatus ? ' • ' : ''}fallback metrics API`;
+                } else {
+                    this.tpsStatusText = baseStatus;
+                }
+            } catch (e) {
+                if (!this._isLoadCurrent('tps', seq, range)) return;
+                const reason = e?.message ? `: ${e.message}` : '';
+                this.tpsStatusText = `TPS/MSPT (${range}) load failed${reason}`;
+                this.tpsWindowBounds = null;
+                console.error('Failed to load TPS/MSPT data:', e);
+            }
+        },
+
+        async loadDisk() {
+            const diskChart = this._getChart('disk');
+            if (!diskChart) return;
+            const range = this.chartRanges.disk;
+            const seq = this._nextLoadSeq('disk');
+            try {
+                const resp = await fetch(`/minecraft/admin/api/analytics/disk?range=${range}`);
+                const data = await resp.json();
+                if (!this._isLoadCurrent('disk', seq, range)) return;
+                const metadata = this._extractMetadata(data);
+                const windowBounds = this._resolveWindowBounds(metadata, range);
+
+                const diskRows = Array.isArray(data.disk) ? data.disk : [];
+                const diskData = diskRows.map(d => ({
+                    x: Number(d.timestamp) * 1000,
+                    y: this._toFiniteNumber(d.size_mb),
+                })).filter(point => Number.isFinite(point.x) && Number.isFinite(point.y));
+
+                diskChart.data.datasets[0].data = diskData;
+                this._applySeriesStyle(diskChart, range);
+                this._applyPerformanceMode(diskChart, range);
+                this._applyXAxisRange(diskChart, range, windowBounds);
+                diskChart.update('none');
+
+                this.diskWindowBounds = windowBounds;
+                this.diskStatusText = this._buildMetaStatusText(`Disk (${range})`, metadata);
+            } catch (e) {
+                if (!this._isLoadCurrent('disk', seq, range)) return;
+                this.diskStatusText = '';
+                this.diskWindowBounds = null;
+                console.error('Failed to load disk data:', e);
+            }
+        },
+
+        setRange(chartKey, range) {
+            if (!Object.prototype.hasOwnProperty.call(this.chartRanges, chartKey)) return;
+            const chartOptions = {
+                metrics: this.metricsRangeOptions,
+                tps: this.tpsRangeOptions,
+                disk: this.diskRangeOptions,
+            };
+            const validRange = Array.isArray(chartOptions[chartKey]) && chartOptions[chartKey].includes(range);
+            if (!validRange) return;
+            if (this.chartRanges[chartKey] === range) return;
+
+            this.chartRanges[chartKey] = range;
+            if (chartKey === 'metrics' || chartKey === 'tps') {
+                this._clearLiveBuffer();
+            }
+
+            if (chartKey === 'disk') {
+                this.loadDisk();
+                return;
+            }
+            if (chartKey === 'metrics') {
+                this.loadMetricsChart();
+                return;
+            }
+            this.loadTpsChart();
+        },
+
+        resetZoom() {
+            const metricsChart = this._getChart('metrics');
+            const tpsChart = this._getChart('tps');
+            const diskChart = this._getChart('disk');
+            if (metricsChart) metricsChart.$appliedBoundsKey = null;
+            if (tpsChart) tpsChart.$appliedBoundsKey = null;
+            if (diskChart) diskChart.$appliedBoundsKey = null;
+
+            this._applyXAxisRange(metricsChart, this.chartRanges.metrics, this.metricsWindowBounds);
+            this._applyXAxisRange(tpsChart, this.chartRanges.tps, this.tpsWindowBounds);
+            this._applyXAxisRange(diskChart, this.chartRanges.disk, this.diskWindowBounds);
+
+            metricsChart?.update('none');
+            tpsChart?.update('none');
+            diskChart?.update('none');
+        },
+
+        connectWebSocket() {
+            if (this.ws) {
+                try {
+                    this.ws.onopen = null;
+                    this.ws.onmessage = null;
+                    this.ws.onclose = null;
+                    this.ws.onerror = null;
+                    this.ws.close();
+                } catch (e) {
+                    console.debug('Failed to close previous websocket:', e);
+                }
+                this.ws = null;
+            }
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${location.host}/minecraft/admin/ws/minecraft/metrics`;
+
+            this.ws = new WebSocket(wsUrl);
+
+            this.ws.onopen = () => {
+                this.wsConnected = true;
+                if (this.wsReconnectTimer) {
+                    clearTimeout(this.wsReconnectTimer);
+                    this.wsReconnectTimer = null;
+                }
+            };
+
+            this.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'heartbeat') return;
+                if (data.type === 'metric') {
+                    // Update stat cards
+                    const cpuPercent = this._cpuPercent(data);
+                    if (cpuPercent !== null) this.currentCpu = cpuPercent;
+                    const cpuRaw = this._cpuRawPercent(data);
+                    if (cpuRaw !== null) this.currentCpuRaw = cpuRaw;
+                    this.currentRam = data.ram_mb;
+                    this.currentPlayers = data.players;
+                    this.currentTps = this._toFiniteNumber(data.tps);
+                    this.currentMspt = this._toFiniteNumber(data.mspt);
+                    if (this.currentTps !== null) this.lastKnownTps = this.currentTps;
+                    if (this.currentMspt !== null) this.lastKnownMspt = this.currentMspt;
+
+                    if (!this.isPageVisible) {
+                        this._clearLiveBuffer();
+                        return;
+                    }
+
+                    // Append to charts in small batches for lower per-message overhead.
+                    if (this.chartRanges.metrics === '1h' || this.chartRanges.tps === '1h') {
+                        this._queueLiveMetric(data);
+                    }
+                }
+            };
+
+            this.ws.onclose = () => {
+                this.wsConnected = false;
+                this._clearLiveBuffer();
+                // Reconnect after 5 seconds
+                this.wsReconnectTimer = setTimeout(() => this.connectWebSocket(), 5000);
+            };
+
+            this.ws.onerror = () => {
+                this.ws.close();
+            };
+        },
+    };
+}
+</script>
+{% endblock %}

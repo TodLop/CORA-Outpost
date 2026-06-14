@@ -1,0 +1,72 @@
+# Public release exclusion list.
+#
+# This file is used by scripts/export_public_release.py and
+# scripts/check_public_release.py to generate or validate a public-safe export.
+# It is intentionally separate from .gitignore: tracked files are still public
+# if this private repository is made public directly.
+
+# Git/runtime/tooling internals
+.git/
+.omx/
+.sisyphus/
+.claude/settings.local.json
+.playwright-cli/
+.venv/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+
+# Generated public export output
+dist/public-release/
+
+# Secrets, credentials, runtime data, and logs
+.env
+credentials.json
+client_secret*.json
+token.json
+config_files/
+data/
+logs/
+*.log
+user_prefs_*.json
+
+# Local/private project notes and internal evidence
+CLAUDE.md
+Project Octupus.md
+PORTFOLIO_QUICKSTART.md
+notes/
+tasks/
+report.md
+mistakes.md
+deploy/launchd/
+
+# Historical private production repair notes
+REVENUE_RESTORATION_SUMMARY.md
+docs/REVENUE_RESTORATION_*
+restore_server_revenue.py
+cleanup_backups_manual.py
+docs/backup_retention.md
+docs/portfolio-*.md
+
+# Internal/historical workflow notes not intended as public setup docs
+docs/IMPLEMENTATION_COMPLETE.md
+docs/architecture.md
+docs/JUNIOR_RULES.md
+
+# Private player incident/log artifacts
+docs/minecraft/backend/080-incident-*
+
+# Historical plugin deployment evidence with private machine paths
+custom_plugins/ServerShop/DEPLOYMENT_VERIFICATION.md
+
+# Local generated metadata that records machine-specific source paths.
+# The generated item PNGs stay public; only this metadata is excluded.
+app/static/minecraft/items/*/manifest.json
+
+# Build outputs
+custom_plugins/**/target/
+*.class
+*.jar

@@ -1,0 +1,214 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Dashboard - Project Octopus{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div x-data="adminDashboard()" x-init="init()" class="min-h-screen bg-[#050505]">
+    <!-- Header -->
+    <header class="border-b border-purple-500/20 bg-[#0a0a0a]/80 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <a href="/" class="text-slate-400 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </a>
+                    <h1 class="font-orbitron text-2xl text-white">
+                        <span class="text-purple-400">ADMIN</span> PANEL
+                    </h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-purple-400">{{ user_info.email }}</span>
+                    <span
+                        class="px-2 py-1 text-xs bg-purple-500/20 text-purple-300 rounded-full border border-purple-500/30">
+                        ADMIN
+                    </span>
+                    {{ near.settings_button() }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Admin Modules Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Minecraft Server Management -->
+            <a href="/minecraft/admin"
+                class="glass-panel rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all group">
+                <div class="flex items-center gap-4 mb-4">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center relative">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                        </svg>
+                        <!-- Live status indicator -->
+                        <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a0a0a]"
+                            :class="overview.server_running ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></span>
+                    </div>
+                    <div>
+                        <h3 class="font-orbitron text-lg text-white group-hover:text-purple-300 transition-colors">
+                            Minecraft Server
+                        </h3>
+                        <p class="text-sm text-slate-400">NEAROUTPOST Management</p>
+                    </div>
+                </div>
+                <p class="text-slate-400 text-sm mb-4">
+                    Manage Paper server and plugin updates. Check for new versions, view changelogs, and apply updates
+                    with one click.
+                </p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-purple-400 text-sm">
+                        <span>Manage Server</span>
+                        <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                    <span class="text-xs px-2 py-1 rounded-full"
+                        :class="overview.server_running ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
+                        x-text="overview.server_running ? (overview.players_online + ' online') : 'Offline'"></span>
+                </div>
+            </a>
+
+            <!-- Dashboard -->
+            <a href="/minecraft/admin"
+                class="glass-panel rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all group">
+                <div class="flex items-center gap-4 mb-4">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-orbitron text-lg text-white group-hover:text-purple-300 transition-colors">
+                            Dashboard
+                        </h3>
+                        <p class="text-sm text-slate-400">Project Management</p>
+                    </div>
+                </div>
+                <p class="text-slate-400 text-sm mb-4">
+                    Manage tasks, roadmaps, and changelogs with a Padlet-style board. Track progress and collaborate with staff.
+                </p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-purple-400 text-sm">
+                        <span>Open Board</span>
+                        <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </div>
+            </a>
+
+            <!-- System Logs -->
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/30 opacity-60 cursor-not-allowed">
+                <div class="flex items-center gap-4 mb-4">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-orbitron text-lg text-slate-400">System Logs</h3>
+                        <p class="text-sm text-slate-500">Activity Monitor</p>
+                    </div>
+                </div>
+                <p class="text-slate-500 text-sm mb-4">
+                    View system logs, API calls, and error reports across all services.
+                </p>
+                <span class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">Coming Soon</span>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="mt-8 glass-panel rounded-xl p-6 border border-purple-500/20">
+            <h2 class="font-orbitron text-lg text-white mb-4">Quick Overview</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-[#0a0a0a] rounded-lg p-4">
+                    <p class="text-slate-400 text-sm">Active Services</p>
+                    <p class="font-orbitron text-2xl text-green-400" x-text="overview.active_services"></p>
+                </div>
+                <div class="bg-[#0a0a0a] rounded-lg p-4">
+                    <p class="text-slate-400 text-sm">Pending Updates</p>
+                    <p class="font-orbitron text-2xl"
+                        :class="overview.pending_updates > 0 ? 'text-yellow-400' : 'text-slate-500'"
+                        x-text="overview.pending_updates || '-'"></p>
+                </div>
+                <div class="bg-[#0a0a0a] rounded-lg p-4">
+                    <p class="text-slate-400 text-sm">Server Uptime</p>
+                    <p class="font-orbitron text-xl"
+                        :class="overview.uptime !== 'Offline' ? 'text-cyan-400' : 'text-slate-500'"
+                        x-text="overview.uptime"></p>
+                </div>
+                <div class="bg-[#0a0a0a] rounded-lg p-4">
+                    <p class="text-slate-400 text-sm">Last Update Check</p>
+                    <p class="font-orbitron text-lg text-slate-300" x-text="formatLastCheck(overview.last_check)"></p>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    function adminDashboard() {
+        return {
+            overview: {
+                active_services: '-',
+                pending_updates: 0,
+                uptime: '--',
+                last_check: null,
+                server_running: false,
+                players_online: 0
+            },
+
+            init() {
+                this.fetchOverview();
+                setInterval(() => this.fetchOverview(), 10000);
+            },
+
+            async fetchOverview() {
+                try {
+                    const response = await fetch('/minecraft/admin/api/overview');
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        this.overview = {
+                            active_services: data.active_services,
+                            pending_updates: data.pending_updates,
+                            uptime: data.uptime,
+                            last_check: data.last_check,
+                            server_running: data.server_running,
+                            players_online: data.players_online
+                        };
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch overview:', e);
+                }
+            },
+
+            formatLastCheck(isoString) {
+                if (!isoString) return 'Never';
+                const date = new Date(isoString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return diffMins + 'm ago';
+                const diffHours = Math.floor(diffMins / 60);
+                if (diffHours < 24) return diffHours + 'h ago';
+                return date.toLocaleDateString();
+            }
+        }
+    }
+</script>
+{% endblock %}

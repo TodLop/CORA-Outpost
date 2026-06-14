@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+declare -a staged_files=()
+while IFS= read -r -d '' file; do
+  staged_files+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+
+if [ "${#staged_files[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+is_blocked_path() {
+  local f="$1"
+  case "$f" in
+    .env.example) return 1 ;;
+    .env|.env.*|*/.env|*/.env.*) return 0 ;;
+    credentials.json|*/credentials.json) return 0 ;;
+    client_secret*.json|*/client_secret*.json) return 0 ;;
+    token.json|*/token.json) return 0 ;;
+    config_files/*|*/config_files/*) return 0 ;;
+    data/*|*/data/*) return 0 ;;
+    logs/*|*/logs/*) return 0 ;;
+    *.pem|*.key) return 0 ;;
+    custom_plugins/*/target/*) return 0 ;;
+    *.class|*.jar) return 0 ;;
+    .project|*/.project) return 0 ;;
+    .classpath|*/.classpath) return 0 ;;
+    .settings/*|*/.settings/*) return 0 ;;
+    *.backup) return 0 ;;
+  esac
+  return 1
+}
+
+declare -a blocked=()
+for file in "${staged_files[@]}"; do
+  if is_blocked_path "$file"; then
+    blocked+=("$file")
+  fi
+done
+
+if [ "${#blocked[@]}" -gt 0 ]; then
+  echo "ERROR: commit blocked by local safety policy."
+  echo "The following staged files are not allowed:"
+  for file in "${blocked[@]}"; do
+    echo "  - $file"
+  done
+  echo
+  echo "Unstage blocked files with:"
+  echo "  git restore --staged <path>"
+  echo
+  echo "Policy reference: AGENTS.md"
+  exit 1
+fi
+
+python3 scripts/check_public_extract.py
+
+exit 0

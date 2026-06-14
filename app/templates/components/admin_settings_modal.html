@@ -1,0 +1,265 @@
+<div x-data="adminSettingsModal()" x-cloak x-show="visible" x-transition
+    @open-admin-settings.window="open()"
+    @keydown.escape.window="close()"
+    class="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div class="admin-settings-overlay absolute inset-0 backdrop-blur-sm" @click="close()"></div>
+
+    <section class="admin-settings-modal relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl p-5"
+        role="dialog" aria-modal="true" aria-labelledby="admin-settings-title">
+        <div class="mb-4 flex items-start justify-between gap-3">
+            <div>
+                <h3 id="admin-settings-title" class="admin-title text-lg font-bold">UI Preferences</h3>
+                <p class="admin-muted text-xs">Personal theme and interface options. Server settings are managed separately.</p>
+            </div>
+            <button type="button" @click="close()" class="admin-icon-button" aria-label="Close settings modal">
+                <i data-lucide="x" class="h-4 w-4"></i>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+            <label class="block">
+                <span class="admin-label mb-1.5 block text-xs font-semibold uppercase tracking-wider">Theme</span>
+                <select x-model="draft.theme" class="admin-input w-full rounded-lg px-3 py-2">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="system">System</option>
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="admin-label mb-1.5 block text-xs font-semibold uppercase tracking-wider">Language</span>
+                <select x-model="draft.language" class="admin-input w-full rounded-lg px-3 py-2">
+                    <option value="ko">한국어</option>
+                    <option value="en">English</option>
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="admin-label mb-1.5 block text-xs font-semibold uppercase tracking-wider">Font Size</span>
+                <select x-model="draft.font_scale" class="admin-input w-full rounded-lg px-3 py-2">
+                    <option value="sm">Small</option>
+                    <option value="md">Medium</option>
+                    <option value="lg">Large</option>
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="admin-label mb-1.5 block text-xs font-semibold uppercase tracking-wider">Toast Duration</span>
+                <select x-model.number="draft.toast_duration_ms" class="admin-input w-full rounded-lg px-3 py-2">
+                    <option :value="2000">2s</option>
+                    <option :value="4000">4s</option>
+                    <option :value="7000">7s</option>
+                    <option :value="10000">10s</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+            <label class="admin-card flex items-center justify-between rounded-lg p-3">
+                <span class="admin-title font-semibold">High Contrast</span>
+                <input type="checkbox" x-model="draft.high_contrast"
+                    class="h-4 w-4 rounded border-slate-500 text-cyan-600">
+            </label>
+
+            <label class="admin-card flex items-center justify-between rounded-lg p-3">
+                <span class="admin-title font-semibold">Reduce Motion</span>
+                <input type="checkbox" x-model="draft.reduced_motion"
+                    class="h-4 w-4 rounded border-slate-500 text-cyan-600">
+            </label>
+        </div>
+
+        <div x-show="statusMessage" x-transition
+            class="mt-4 rounded-lg border px-3 py-2 text-sm"
+            :class="statusType === 'error'
+                ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'"
+            x-text="statusMessage"></div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
+            <button type="button" @click="reload()" :disabled="loading || saving"
+                class="admin-button admin-button-secondary">
+                <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+                <span x-text="loading ? 'Loading...' : 'Reload'"></span>
+            </button>
+            <button type="button" @click="close()" :disabled="saving"
+                class="admin-button admin-button-secondary">
+                Cancel
+            </button>
+            <button type="button" @click="save()" :disabled="saving || loading"
+                class="admin-button admin-button-primary">
+                <i data-lucide="save" class="h-4 w-4"></i>
+                <span x-text="saving ? 'Saving...' : 'Save Preferences'"></span>
+            </button>
+        </div>
+    </section>
+</div>
+
+<script>
+    (function () {
+        if (window.adminSettingsModal) return;
+
+        window.adminSettingsModal = function () {
+            const defaults = {
+                language: 'ko',
+                theme: 'dark',
+                font_scale: 'md',
+                high_contrast: false,
+                reduced_motion: false,
+                toast_duration_ms: 4000,
+            };
+
+            return {
+                visible: false,
+                loading: false,
+                saving: false,
+                statusMessage: '',
+                statusType: 'info',
+                preferences: { ...defaults },
+                draft: { ...defaults },
+
+                init() {
+                    const cached = window.CoraAdminPreferences?.readCached?.() || {};
+                    this.syncPreferences({ ...this.preferences, ...cached });
+                    window.addEventListener('cora-preferences-loaded', (event) => {
+                        this.syncPreferences({ ...this.preferences, ...(event.detail || {}) });
+                    });
+                },
+
+                normalize(preferences) {
+                    if (window.CoraAdminPreferences) {
+                        return window.CoraAdminPreferences.normalize(preferences);
+                    }
+                    const raw = preferences && typeof preferences === 'object' ? preferences : {};
+                    return {
+                        ...defaults,
+                        ...raw,
+                        theme: ['dark', 'light', 'system'].includes(raw.theme) ? raw.theme : defaults.theme,
+                        font_scale: ['sm', 'md', 'lg'].includes(raw.font_scale) ? raw.font_scale : defaults.font_scale,
+                        high_contrast: raw.high_contrast === true,
+                        reduced_motion: raw.reduced_motion === true,
+                        toast_duration_ms: Number(raw.toast_duration_ms) || defaults.toast_duration_ms,
+                    };
+                },
+
+                syncPreferences(preferences) {
+                    const normalized = this.normalize(preferences);
+                    this.preferences = normalized;
+                    this.draft = { ...normalized };
+                    return normalized;
+                },
+
+                preferenceEndpoints() {
+                    const path = window.location.pathname || '';
+                    return path.startsWith('/minecraft/staff')
+                        ? ['/minecraft/staff/api/preferences', '/minecraft/admin/api/preferences']
+                        : ['/minecraft/admin/api/preferences', '/minecraft/staff/api/preferences'];
+                },
+
+                commonPayload() {
+                    const normalized = this.normalize(this.draft);
+                    return {
+                        language: normalized.language,
+                        theme: normalized.theme,
+                        font_scale: normalized.font_scale,
+                        high_contrast: normalized.high_contrast,
+                        reduced_motion: normalized.reduced_motion,
+                        toast_duration_ms: normalized.toast_duration_ms,
+                    };
+                },
+
+                applyAndBroadcast(preferences) {
+                    const normalized = this.syncPreferences({ ...this.preferences, ...preferences });
+                    window.CoraAdminPreferences?.store?.(normalized);
+                    window.CoraAdminPreferences?.apply?.(normalized);
+                    window.dispatchEvent(new CustomEvent('cora-preferences-loaded', { detail: normalized }));
+                    return normalized;
+                },
+
+                async open() {
+                    this.visible = true;
+                    this.statusMessage = '';
+                    const cached = window.CoraAdminPreferences?.readCached?.() || this.preferences;
+                    this.syncPreferences({ ...this.preferences, ...cached });
+                    setTimeout(() => window.lucide?.createIcons?.(), 0);
+                    await this.reload();
+                },
+
+                close() {
+                    if (!this.saving) {
+                        this.visible = false;
+                        this.statusMessage = '';
+                    }
+                },
+
+                async reload() {
+                    this.loading = true;
+                    this.statusMessage = '';
+                    try {
+                        const shared = await window.CoraAdminPreferences?.loadFromServer?.();
+                        if (shared) {
+                            this.syncPreferences({ ...this.preferences, ...shared });
+                            return;
+                        }
+
+                        for (const endpoint of this.preferenceEndpoints()) {
+                            const response = await fetch(endpoint, { credentials: 'same-origin' });
+                            if (response.status === 401 || response.status === 403 || response.status === 404) {
+                                continue;
+                            }
+                            if (!response.ok) {
+                                continue;
+                            }
+                            const data = await response.json();
+                            if (data.status === 'ok' && data.preferences) {
+                                this.applyAndBroadcast(data.preferences);
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        this.statusType = 'error';
+                        this.statusMessage = 'Failed to load preferences';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async save() {
+                    this.saving = true;
+                    this.statusMessage = '';
+                    const payload = this.commonPayload();
+                    try {
+                        for (const endpoint of this.preferenceEndpoints()) {
+                            const response = await fetch(endpoint, {
+                                method: 'PUT',
+                                credentials: 'same-origin',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload),
+                            });
+                            const data = await response.json().catch(() => ({}));
+                            if (response.status === 401 || response.status === 403 || response.status === 404) {
+                                continue;
+                            }
+                            if (response.ok && data.status === 'ok') {
+                                this.applyAndBroadcast({ ...payload, ...(data.preferences || {}) });
+                                this.statusType = 'success';
+                                this.statusMessage = 'Preferences saved';
+                                setTimeout(() => this.close(), 450);
+                                return;
+                            }
+                            this.statusType = 'error';
+                            this.statusMessage = data.error || 'Failed to save preferences';
+                            return;
+                        }
+                        this.statusType = 'error';
+                        this.statusMessage = 'No preferences endpoint is available';
+                    } catch (error) {
+                        this.statusType = 'error';
+                        this.statusMessage = 'Failed to save preferences';
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+            };
+        };
+    })();
+</script>

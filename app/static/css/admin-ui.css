@@ -1,0 +1,1215 @@
+:root {
+    --no-surface-base: #05070c;
+    --no-surface-elevated: rgba(12, 16, 28, 0.82);
+    --no-surface-muted: rgba(18, 24, 38, 0.72);
+    --no-border-subtle: rgba(148, 163, 184, 0.24);
+    --no-border-strong: rgba(148, 163, 184, 0.38);
+    --no-text-high: #f1f5f9;
+    --no-text-mid: #d5dfec;
+    --no-text-low: #9fb0c7;
+    --no-text-faint: #7f90a8;
+    --no-focus: rgba(56, 189, 248, 0.52);
+
+    --surface-page: var(--no-surface-base);
+    --surface-raised: var(--no-surface-elevated);
+    --surface-card: rgba(15, 23, 42, 0.78);
+    --surface-control: rgba(30, 41, 59, 0.72);
+    --surface-control-hover: rgba(51, 65, 85, 0.86);
+    --surface-sunken: rgba(2, 6, 23, 0.52);
+    --surface-overlay: rgba(2, 6, 23, 0.76);
+    --border-default: var(--no-border-subtle);
+    --border-strong: var(--no-border-strong);
+    --text-primary: var(--no-text-high);
+    --text-secondary: var(--no-text-mid);
+    --text-tertiary: var(--no-text-low);
+    --text-muted: var(--no-text-faint);
+    --text-inverse: #020617;
+    --text-on-accent: #f8fafc;
+    --accent-primary: #22d3ee;
+    --accent-primary-bg: rgba(34, 211, 238, 0.16);
+    --accent-primary-border: rgba(34, 211, 238, 0.42);
+    --status-success: #86efac;
+    --status-success-bg: rgba(34, 197, 94, 0.16);
+    --status-success-border: rgba(34, 197, 94, 0.42);
+    --status-warning: #fbbf24;
+    --status-warning-bg: rgba(245, 158, 11, 0.16);
+    --status-warning-border: rgba(245, 158, 11, 0.42);
+    --status-error: #fca5a5;
+    --status-error-bg: rgba(239, 68, 68, 0.16);
+    --status-error-border: rgba(239, 68, 68, 0.42);
+    --status-info: #67e8f9;
+    --status-info-bg: rgba(6, 182, 212, 0.16);
+    --status-info-border: rgba(6, 182, 212, 0.42);
+    --status-purple: #c4b5fd;
+    --status-purple-bg: rgba(139, 92, 246, 0.16);
+    --status-purple-border: rgba(139, 92, 246, 0.42);
+}
+
+html.pref-theme-dark {
+    --no-surface-base: #05070c;
+    --no-surface-elevated: rgba(12, 16, 28, 0.82);
+    --no-surface-muted: rgba(18, 24, 38, 0.72);
+    --no-border-subtle: rgba(148, 163, 184, 0.24);
+    --no-border-strong: rgba(148, 163, 184, 0.38);
+    --no-text-high: #f1f5f9;
+    --no-text-mid: #d5dfec;
+    --no-text-low: #9fb0c7;
+    --no-text-faint: #7f90a8;
+    --no-focus: rgba(56, 189, 248, 0.52);
+
+    --surface-page: var(--no-surface-base);
+    --surface-raised: var(--no-surface-elevated);
+    --surface-card: rgba(15, 23, 42, 0.78);
+    --surface-control: rgba(30, 41, 59, 0.72);
+    --surface-control-hover: rgba(51, 65, 85, 0.86);
+    --surface-sunken: rgba(2, 6, 23, 0.52);
+    --surface-overlay: rgba(2, 6, 23, 0.76);
+    --border-default: var(--no-border-subtle);
+    --border-strong: var(--no-border-strong);
+    --text-primary: var(--no-text-high);
+    --text-secondary: var(--no-text-mid);
+    --text-tertiary: var(--no-text-low);
+    --text-muted: var(--no-text-faint);
+    --text-inverse: #020617;
+    --text-on-accent: #f8fafc;
+    --accent-primary: #22d3ee;
+    --accent-primary-bg: rgba(34, 211, 238, 0.16);
+    --accent-primary-border: rgba(34, 211, 238, 0.42);
+    --status-success: #86efac;
+    --status-success-bg: rgba(34, 197, 94, 0.16);
+    --status-success-border: rgba(34, 197, 94, 0.42);
+    --status-warning: #fbbf24;
+    --status-warning-bg: rgba(245, 158, 11, 0.16);
+    --status-warning-border: rgba(245, 158, 11, 0.42);
+    --status-error: #fca5a5;
+    --status-error-bg: rgba(239, 68, 68, 0.16);
+    --status-error-border: rgba(239, 68, 68, 0.42);
+    --status-info: #67e8f9;
+    --status-info-bg: rgba(6, 182, 212, 0.16);
+    --status-info-border: rgba(6, 182, 212, 0.42);
+    --status-purple: #c4b5fd;
+    --status-purple-bg: rgba(139, 92, 246, 0.16);
+    --status-purple-border: rgba(139, 92, 246, 0.42);
+}
+
+html.pref-theme-light {
+    --no-surface-base: #edf2f7;
+    --no-surface-elevated: #ffffff;
+    --no-surface-muted: #f8fafc;
+    --no-border-subtle: rgba(71, 85, 105, 0.32);
+    --no-border-strong: rgba(51, 65, 85, 0.5);
+    --no-text-high: #0b1120;
+    --no-text-mid: #111827;
+    --no-text-low: #243041;
+    --no-text-faint: #334155;
+    --no-focus: rgba(37, 99, 235, 0.45);
+
+    --surface-page: var(--no-surface-base);
+    --surface-raised: #ffffff;
+    --surface-card: #f8fafc;
+    --surface-control: #eef3f8;
+    --surface-control-hover: #e2e8f0;
+    --surface-sunken: #e7edf5;
+    --surface-overlay: rgba(15, 23, 42, 0.38);
+    --border-default: rgba(71, 85, 105, 0.3);
+    --border-strong: rgba(51, 65, 85, 0.48);
+    --text-primary: #0b1120;
+    --text-secondary: #111827;
+    --text-tertiary: #243041;
+    --text-muted: #334155;
+    --text-inverse: #f8fafc;
+    --text-on-accent: #f8fafc;
+    --accent-primary: #0e7490;
+    --accent-primary-bg: rgba(14, 116, 144, 0.14);
+    --accent-primary-border: rgba(14, 116, 144, 0.38);
+    --status-success: #14532d;
+    --status-success-bg: rgba(22, 101, 52, 0.12);
+    --status-success-border: rgba(22, 101, 52, 0.34);
+    --status-warning: #7c2d12;
+    --status-warning-bg: rgba(194, 65, 12, 0.12);
+    --status-warning-border: rgba(194, 65, 12, 0.34);
+    --status-error: #991b1b;
+    --status-error-bg: rgba(185, 28, 28, 0.12);
+    --status-error-border: rgba(185, 28, 28, 0.34);
+    --status-info: #155e75;
+    --status-info-bg: rgba(14, 116, 144, 0.12);
+    --status-info-border: rgba(14, 116, 144, 0.34);
+    --status-purple: #4c1d95;
+    --status-purple-bg: rgba(91, 33, 182, 0.12);
+    --status-purple-border: rgba(91, 33, 182, 0.34);
+}
+
+html[data-font-scale='sm'] {
+    font-size: 14px;
+}
+
+html[data-font-scale='md'] {
+    font-size: 16px;
+}
+
+html[data-font-scale='lg'] {
+    font-size: 18px;
+}
+
+html[data-reduced-motion='true'] *,
+html[data-reduced-motion='true'] *::before,
+html[data-reduced-motion='true'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* Token-first admin primitives for new shared UI. */
+[data-admin-shell] .admin-page {
+    background: var(--surface-page);
+    color: var(--text-primary);
+}
+
+[data-admin-shell] .admin-panel,
+[data-admin-shell] .admin-settings-modal {
+    background: var(--surface-raised);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    box-shadow: 0 16px 40px rgba(2, 6, 23, 0.18);
+}
+
+[data-admin-shell] .admin-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+}
+
+[data-admin-shell] .admin-control,
+[data-admin-shell] .admin-input {
+    background: var(--surface-control);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+}
+
+[data-admin-shell] .admin-input::placeholder {
+    color: var(--text-muted);
+}
+
+[data-admin-shell] .admin-input:focus {
+    border-color: var(--accent-primary-border);
+    box-shadow: 0 0 0 3px var(--accent-primary-bg);
+    outline: none;
+}
+
+[data-admin-shell] .admin-title {
+    color: var(--text-primary);
+}
+
+[data-admin-shell] .admin-muted {
+    color: var(--text-muted);
+}
+
+[data-admin-shell] .admin-label {
+    color: var(--text-tertiary);
+}
+
+[data-admin-shell] .admin-pill {
+    background: var(--surface-control);
+    border: 1px solid var(--border-default);
+    color: var(--text-secondary);
+}
+
+[data-admin-shell] .admin-settings-overlay {
+    background: var(--surface-overlay);
+}
+
+[data-admin-shell] .admin-button,
+[data-admin-shell] .admin-icon-button {
+    align-items: center;
+    border: 1px solid var(--border-default);
+    border-radius: 0.75rem;
+    color: var(--text-secondary);
+    display: inline-flex;
+    font-weight: 600;
+    gap: 0.5rem;
+    justify-content: center;
+    min-height: 2.5rem;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+}
+
+[data-admin-shell] .admin-button {
+    padding: 0.55rem 0.9rem;
+}
+
+[data-admin-shell] .admin-icon-button {
+    height: 2.5rem;
+    padding: 0;
+    width: 2.5rem;
+}
+
+[data-admin-shell] .admin-button-secondary,
+[data-admin-shell] .admin-icon-button {
+    background: var(--surface-control);
+}
+
+[data-admin-shell] .admin-button-secondary:hover,
+[data-admin-shell] .admin-icon-button:hover {
+    background: var(--surface-control-hover);
+    color: var(--text-primary);
+}
+
+[data-admin-shell] .admin-button-primary {
+    background: var(--accent-primary-bg);
+    border-color: var(--accent-primary-border);
+    color: var(--accent-primary);
+}
+
+[data-admin-shell] .admin-button-primary:hover {
+    background: color-mix(in srgb, var(--accent-primary-bg) 78%, var(--accent-primary));
+    color: var(--accent-primary);
+}
+
+[data-admin-shell] .admin-button-danger {
+    background: var(--status-error-bg);
+    border-color: var(--status-error-border);
+    color: var(--status-error);
+}
+
+[data-admin-shell] .admin-button:disabled,
+[data-admin-shell] .admin-icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+/* Bridge Layer: migration shim for existing utility-heavy admin templates. */
+
+html.pref-theme-dark[data-high-contrast='true'] [x-data="minecraftAdmin()"] .text-slate-500,
+html.pref-theme-dark[data-high-contrast='true'] [x-data="staffPanel()"] .text-slate-500 {
+    color: #d8e6ff !important;
+}
+
+html.pref-theme-dark[data-high-contrast='true'] [x-data="minecraftAdmin()"] .text-slate-400,
+html.pref-theme-dark[data-high-contrast='true'] [x-data="staffPanel()"] .text-slate-400 {
+    color: #e8f1ff !important;
+}
+
+html.pref-theme-light[data-high-contrast='true'] [x-data="minecraftAdmin()"] .text-slate-500,
+html.pref-theme-light[data-high-contrast='true'] [x-data="staffPanel()"] .text-slate-500 {
+    color: #1e293b !important;
+}
+
+html.pref-theme-light[data-high-contrast='true'] [x-data="minecraftAdmin()"] .text-slate-400,
+html.pref-theme-light[data-high-contrast='true'] [x-data="staffPanel()"] .text-slate-400 {
+    color: #0f172a !important;
+}
+
+html.pref-theme-dark[data-high-contrast='true'] [data-admin-shell] .text-slate-500 {
+    color: #d8e6ff !important;
+}
+
+html.pref-theme-dark[data-high-contrast='true'] [data-admin-shell] .text-slate-400 {
+    color: #e8f1ff !important;
+}
+
+html.pref-theme-light[data-high-contrast='true'] [data-admin-shell] .text-slate-500 {
+    color: #1e293b !important;
+}
+
+html.pref-theme-light[data-high-contrast='true'] [data-admin-shell] .text-slate-400 {
+    color: #0f172a !important;
+}
+
+html.pref-theme-light body {
+    color: var(--no-text-high);
+    background:
+        radial-gradient(circle at 20% -20%, rgba(14, 116, 144, 0.06), transparent 42%),
+        radial-gradient(circle at 80% -10%, rgba(99, 102, 241, 0.05), transparent 42%),
+        var(--no-surface-base) !important;
+}
+
+html.pref-theme-light .scanline {
+    opacity: 0.015 !important;
+}
+
+html.pref-theme-light .glass-card,
+html.pref-theme-light .glass-panel {
+    background: var(--no-surface-elevated) !important;
+    border-color: var(--no-border-subtle) !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] [class*="bg-[#050505]"],
+html.pref-theme-light [x-data="minecraftAdmin()"] [class*="bg-[#0a0a0a]"],
+html.pref-theme-light [x-data="minecraftAdmin()"] [class*="bg-slate-9"],
+html.pref-theme-light [x-data="minecraftAdmin()"] [class*="bg-slate-8"],
+html.pref-theme-light [x-data="minecraftAdmin()"] [class*="bg-slate-7"],
+html.pref-theme-light [x-data="staffPanel()"] [class*="bg-[#050505]"],
+html.pref-theme-light [x-data="staffPanel()"] [class*="bg-[#0a0a0a]"],
+html.pref-theme-light [x-data="staffPanel()"] [class*="bg-slate-9"],
+html.pref-theme-light [x-data="staffPanel()"] [class*="bg-slate-8"],
+html.pref-theme-light [x-data="staffPanel()"] [class*="bg-slate-7"] {
+    background-color: var(--no-surface-muted) !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] [class*="border-slate-"],
+html.pref-theme-light [x-data="staffPanel()"] [class*="border-slate-"] {
+    border-color: var(--no-border-subtle) !important;
+}
+
+html.pref-theme-dark [data-admin-shell] {
+    color-scheme: dark;
+}
+
+html.pref-theme-light [data-admin-shell] {
+    color-scheme: light;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-[#050505]"],
+html.pref-theme-light [data-admin-shell] [class*="bg-[#0a0a0a]"],
+html.pref-theme-light [data-admin-shell] [class*="bg-[#0b0f14]"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-9"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-8"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-7"] {
+    background-color: var(--no-surface-muted) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="border-slate-"] {
+    border-color: var(--no-border-subtle) !important;
+}
+
+html.pref-theme-light [data-admin-shell] input,
+html.pref-theme-light [data-admin-shell] select,
+html.pref-theme-light [data-admin-shell] textarea {
+    background-color: rgba(255, 255, 255, 0.94) !important;
+    border-color: var(--no-border-strong) !important;
+    color: var(--no-text-high) !important;
+}
+
+html.pref-theme-light [data-admin-shell] input::placeholder,
+html.pref-theme-light [data-admin-shell] textarea::placeholder {
+    color: var(--no-text-faint) !important;
+}
+
+html.pref-theme-light .text-white {
+    color: var(--no-text-high) !important;
+}
+
+html.pref-theme-light .text-slate-300 {
+    color: var(--no-text-mid) !important;
+}
+
+html.pref-theme-light .text-slate-200 {
+    color: var(--no-text-high) !important;
+}
+
+html.pref-theme-light .text-slate-600 {
+    color: var(--no-text-faint) !important;
+}
+
+html.pref-theme-light .text-slate-500 {
+    color: var(--no-text-low) !important;
+}
+
+html.pref-theme-light .text-slate-400 {
+    color: var(--no-text-mid) !important;
+}
+
+html.pref-theme-light .tab-btn {
+    color: var(--no-text-low);
+    background: rgba(226, 232, 240, 0.92);
+    border-color: var(--no-border-subtle);
+}
+
+html.pref-theme-light .tab-btn.active {
+    background: rgba(99, 102, 241, 0.16);
+    border-color: rgba(99, 102, 241, 0.42);
+    color: #312e81;
+}
+
+html.pref-theme-light .input-field {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: var(--no-border-strong);
+    color: var(--no-text-high);
+}
+
+html.pref-theme-light .input-field::placeholder {
+    color: var(--no-text-faint);
+}
+
+html.pref-theme-light .input-field:focus {
+    border-color: rgba(37, 99, 235, 0.55);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+html.pref-theme-light .btn-primary.text-white,
+html.pref-theme-light .btn-warning.text-white,
+html.pref-theme-light .btn-danger.text-white,
+html.pref-theme-light .btn-secondary.text-white,
+html.pref-theme-light .bg-red-500.text-white,
+html.pref-theme-light .bg-green-500.text-white,
+html.pref-theme-light .bg-blue-500.text-white,
+html.pref-theme-light .bg-blue-600.text-white,
+html.pref-theme-light .bg-purple-500.text-white,
+html.pref-theme-light .bg-purple-600.text-white,
+html.pref-theme-light .bg-emerald-600.text-white,
+html.pref-theme-light .bg-red-400.text-white,
+html.pref-theme-light .level-suspicious,
+html.pref-theme-light .level-high-priority,
+html.pref-theme-light .level-confirmed-cheater {
+    color: #f8fafc !important;
+}
+
+html.pref-theme-light [data-admin-shell] .btn-primary,
+html.pref-theme-light [data-admin-shell] .btn-warning,
+html.pref-theme-light [data-admin-shell] .btn-danger,
+html.pref-theme-light [data-admin-shell] .btn-secondary,
+html.pref-theme-light [data-admin-shell] .staff-badge,
+html.pref-theme-light [data-admin-shell] .plugin-badge,
+html.pref-theme-light [data-admin-shell] .notification-badge,
+html.pref-theme-light [data-admin-shell] [class*="bg-green-600/"].text-white,
+html.pref-theme-light [data-admin-shell] [class*="bg-gradient-to-"] {
+    color: #f8fafc !important;
+}
+
+html.pref-theme-light [data-admin-shell] .btn-primary *,
+html.pref-theme-light [data-admin-shell] .btn-warning *,
+html.pref-theme-light [data-admin-shell] .btn-danger *,
+html.pref-theme-light [data-admin-shell] .btn-secondary *,
+html.pref-theme-light [data-admin-shell] .staff-badge *,
+html.pref-theme-light [data-admin-shell] .plugin-badge *,
+html.pref-theme-light [data-admin-shell] .notification-badge *,
+html.pref-theme-light [data-admin-shell] [class*="bg-green-600/"] .text-white,
+html.pref-theme-light [data-admin-shell] [class*="bg-gradient-to-"] .text-white,
+html.pref-theme-light [data-admin-shell] [class*="bg-gradient-to-"] .text-slate-200,
+html.pref-theme-light [data-admin-shell] [class*="bg-gradient-to-"] .text-slate-300,
+html.pref-theme-light [data-admin-shell] [class*="bg-gradient-to-"] .text-slate-400 {
+    color: #f8fafc !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-white/5"],
+html.pref-theme-light [data-admin-shell] [class*="bg-white/10"] {
+    background-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="border-white/10"],
+html.pref-theme-light [data-admin-shell] [class*="border-white/20"] {
+    border-color: rgba(100, 116, 139, 0.28) !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-cyan-200,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-cyan-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-cyan-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-cyan-500,
+html.pref-theme-light [x-data="staffPanel()"] .text-cyan-200,
+html.pref-theme-light [x-data="staffPanel()"] .text-cyan-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-cyan-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-cyan-500 {
+    color: #0e7490 !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-green-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-green-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-emerald-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-green-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-green-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-emerald-400 {
+    color: #166534 !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-red-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-red-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-red-600,
+html.pref-theme-light [x-data="staffPanel()"] .text-red-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-red-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-red-600 {
+    color: #b91c1c !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-amber-200,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-amber-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-amber-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-orange-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-orange-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-yellow-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-yellow-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-amber-200,
+html.pref-theme-light [x-data="staffPanel()"] .text-amber-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-amber-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-orange-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-orange-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-yellow-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-yellow-400 {
+    color: #9a3412 !important;
+}
+
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-blue-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-blue-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-indigo-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-indigo-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-purple-200,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-purple-300,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-purple-400,
+html.pref-theme-light [x-data="minecraftAdmin()"] .text-purple-500,
+html.pref-theme-light [x-data="staffPanel()"] .text-blue-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-blue-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-indigo-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-indigo-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-purple-200,
+html.pref-theme-light [x-data="staffPanel()"] .text-purple-300,
+html.pref-theme-light [x-data="staffPanel()"] .text-purple-400,
+html.pref-theme-light [x-data="staffPanel()"] .text-purple-500 {
+    color: #4338ca !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-cyan-200,
+html.pref-theme-light [data-admin-shell] .text-cyan-300,
+html.pref-theme-light [data-admin-shell] .text-cyan-400,
+html.pref-theme-light [data-admin-shell] .text-cyan-500 {
+    color: #0e7490 !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-green-300,
+html.pref-theme-light [data-admin-shell] .text-green-400,
+html.pref-theme-light [data-admin-shell] .text-emerald-200,
+html.pref-theme-light [data-admin-shell] .text-emerald-300,
+html.pref-theme-light [data-admin-shell] .text-emerald-400 {
+    color: #166534 !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-red-300,
+html.pref-theme-light [data-admin-shell] .text-red-400,
+html.pref-theme-light [data-admin-shell] .text-red-600 {
+    color: #b91c1c !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-amber-200,
+html.pref-theme-light [data-admin-shell] .text-amber-300,
+html.pref-theme-light [data-admin-shell] .text-amber-400,
+html.pref-theme-light [data-admin-shell] .text-orange-200,
+html.pref-theme-light [data-admin-shell] .text-orange-300,
+html.pref-theme-light [data-admin-shell] .text-orange-400,
+html.pref-theme-light [data-admin-shell] .text-yellow-300,
+html.pref-theme-light [data-admin-shell] .text-yellow-400 {
+    color: #9a3412 !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-blue-300,
+html.pref-theme-light [data-admin-shell] .text-blue-400,
+html.pref-theme-light [data-admin-shell] .text-indigo-300,
+html.pref-theme-light [data-admin-shell] .text-indigo-400,
+html.pref-theme-light [data-admin-shell] .text-purple-200,
+html.pref-theme-light [data-admin-shell] .text-purple-300,
+html.pref-theme-light [data-admin-shell] .text-purple-400,
+html.pref-theme-light [data-admin-shell] .text-purple-500 {
+    color: #4338ca !important;
+}
+
+html.pref-theme-light .player-card:hover {
+    background: rgba(148, 163, 184, 0.18);
+}
+
+html.pref-theme-light .log-entry {
+    border-bottom-color: rgba(148, 163, 184, 0.28);
+}
+
+html.pref-theme-light .log-entry:hover {
+    background: rgba(148, 163, 184, 0.16);
+}
+
+html.pref-theme-light .comment-card:hover {
+    background: rgba(148, 163, 184, 0.14);
+}
+
+html.pref-theme-light .command-output {
+    background: rgba(241, 245, 249, 0.95);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    color: var(--no-text-high);
+}
+
+html.pref-theme-light .config-viewer pre {
+    background: rgba(241, 245, 249, 0.95) !important;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    color: var(--no-text-high);
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert,
+html.pref-theme-light [data-admin-shell] .markdown-content {
+    --tw-prose-body: var(--no-text-mid);
+    --tw-prose-headings: var(--no-text-high);
+    --tw-prose-lead: var(--no-text-low);
+    --tw-prose-links: #2563eb;
+    --tw-prose-bold: var(--no-text-high);
+    --tw-prose-counters: var(--no-text-faint);
+    --tw-prose-bullets: var(--no-text-faint);
+    --tw-prose-hr: rgba(100, 116, 139, 0.28);
+    --tw-prose-quotes: var(--no-text-low);
+    --tw-prose-quote-borders: rgba(99, 102, 241, 0.42);
+    --tw-prose-captions: var(--no-text-faint);
+    --tw-prose-code: #1e40af;
+    --tw-prose-pre-code: var(--no-text-high);
+    --tw-prose-pre-bg: rgba(241, 245, 249, 0.96);
+    --tw-prose-th-borders: rgba(100, 116, 139, 0.34);
+    --tw-prose-td-borders: rgba(100, 116, 139, 0.22);
+    color: var(--no-text-mid) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert h1,
+html.pref-theme-light [data-admin-shell] .prose-invert h2,
+html.pref-theme-light [data-admin-shell] .prose-invert h3,
+html.pref-theme-light [data-admin-shell] .prose-invert h4,
+html.pref-theme-light [data-admin-shell] .markdown-content h1,
+html.pref-theme-light [data-admin-shell] .markdown-content h2,
+html.pref-theme-light [data-admin-shell] .markdown-content h3,
+html.pref-theme-light [data-admin-shell] .markdown-content h4 {
+    color: var(--no-text-high) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert a,
+html.pref-theme-light [data-admin-shell] .markdown-content a {
+    color: #2563eb !important;
+    border-bottom-color: rgba(37, 99, 235, 0.3);
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert code,
+html.pref-theme-light [data-admin-shell] .markdown-content code {
+    background: rgba(37, 99, 235, 0.1) !important;
+    color: #1e40af !important;
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert pre,
+html.pref-theme-light [data-admin-shell] .markdown-content pre {
+    background: rgba(241, 245, 249, 0.96) !important;
+    border: 1px solid rgba(100, 116, 139, 0.28);
+    color: var(--no-text-high) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert pre code,
+html.pref-theme-light [data-admin-shell] .markdown-content pre code {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+html.pref-theme-light [data-admin-shell] .prose-invert blockquote,
+html.pref-theme-light [data-admin-shell] .markdown-content blockquote {
+    color: var(--no-text-low) !important;
+    border-left-color: rgba(99, 102, 241, 0.42) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .source-modrinth {
+    background: rgba(16, 185, 129, 0.14);
+    color: #047857;
+}
+
+html.pref-theme-light [data-admin-shell] .source-papermc {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+html.pref-theme-light [data-admin-shell] .source-manual {
+    background: rgba(100, 116, 139, 0.14);
+    color: #475569;
+}
+
+html.pref-theme-light [data-admin-shell] {
+    color: var(--no-text-high);
+}
+
+html.pref-theme-light body[data-admin-shell] > [class*="min-h-screen"][class*="bg-[#050505]"] {
+    background-color: var(--no-surface-base) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-xs,
+html.pref-theme-light [data-admin-shell] .text-sm {
+    font-weight: 500;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-[#050505]"],
+html.pref-theme-light [data-admin-shell] [class*="bg-[#0a0a0a]"],
+html.pref-theme-light [data-admin-shell] [class*="bg-[#0b0f14]"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-9"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-8"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-7"] {
+    background-color: var(--no-surface-muted) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .glass-panel,
+html.pref-theme-light [data-admin-shell] .glass-card {
+    background: var(--no-surface-elevated) !important;
+    border-color: rgba(71, 85, 105, 0.28) !important;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="border-slate-"],
+html.pref-theme-light [data-admin-shell] [class*="border-green-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-blue-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-cyan-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-purple-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-amber-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-orange-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-red-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="border-emerald-500/20"] {
+    border-color: rgba(71, 85, 105, 0.3) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-700/30"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-800/40"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-800/50"],
+html.pref-theme-light [data-admin-shell] [class*="bg-slate-900/70"] {
+    background-color: #eef3f8 !important;
+}
+
+html.pref-theme-light [data-admin-shell] button[class*="bg-slate-"],
+html.pref-theme-light [data-admin-shell] a[class*="bg-slate-"] {
+    color: #172033 !important;
+}
+
+html.pref-theme-light [data-admin-shell] button[class*="bg-slate-"]:hover,
+html.pref-theme-light [data-admin-shell] a[class*="bg-slate-"]:hover {
+    background-color: #e2e8f0 !important;
+    border-color: rgba(51, 65, 85, 0.42) !important;
+    color: #0b1120 !important;
+}
+
+html.pref-theme-light [data-admin-shell] button:disabled,
+html.pref-theme-light [data-admin-shell] select:disabled,
+html.pref-theme-light [data-admin-shell] input:disabled {
+    opacity: 0.68 !important;
+}
+
+html.pref-theme-light [data-admin-shell] button:disabled {
+    color: #334155 !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-green-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-green-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-green-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="bg-emerald-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-emerald-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-emerald-500/20"] {
+    background-color: rgba(34, 197, 94, 0.16) !important;
+    border-color: rgba(21, 128, 61, 0.36) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-cyan-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-cyan-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-cyan-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="bg-blue-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-blue-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-blue-500/20"] {
+    background-color: rgba(14, 165, 233, 0.15) !important;
+    border-color: rgba(3, 105, 161, 0.36) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-purple-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-purple-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-purple-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="bg-indigo-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-indigo-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-indigo-500/20"] {
+    background-color: rgba(124, 58, 237, 0.15) !important;
+    border-color: rgba(91, 33, 182, 0.34) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-amber-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-amber-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-amber-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="bg-yellow-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-yellow-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-yellow-500/20"],
+html.pref-theme-light [data-admin-shell] [class*="bg-orange-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-orange-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-orange-500/20"] {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(180, 83, 9, 0.36) !important;
+}
+
+html.pref-theme-light [data-admin-shell] [class*="bg-red-500/10"],
+html.pref-theme-light [data-admin-shell] [class*="bg-red-500/15"],
+html.pref-theme-light [data-admin-shell] [class*="bg-red-500/20"] {
+    background-color: rgba(239, 68, 68, 0.14) !important;
+    border-color: rgba(185, 28, 28, 0.34) !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-green-300,
+html.pref-theme-light [data-admin-shell] .text-green-400,
+html.pref-theme-light [data-admin-shell] .text-emerald-200,
+html.pref-theme-light [data-admin-shell] .text-emerald-300,
+html.pref-theme-light [data-admin-shell] .text-emerald-400 {
+    color: #14532d !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-cyan-200,
+html.pref-theme-light [data-admin-shell] .text-cyan-300,
+html.pref-theme-light [data-admin-shell] .text-cyan-400,
+html.pref-theme-light [data-admin-shell] .text-cyan-500,
+html.pref-theme-light [data-admin-shell] .text-blue-300,
+html.pref-theme-light [data-admin-shell] .text-blue-400 {
+    color: #155e75 !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-purple-200,
+html.pref-theme-light [data-admin-shell] .text-purple-300,
+html.pref-theme-light [data-admin-shell] .text-purple-400,
+html.pref-theme-light [data-admin-shell] .text-purple-500,
+html.pref-theme-light [data-admin-shell] .text-indigo-300,
+html.pref-theme-light [data-admin-shell] .text-indigo-400 {
+    color: #4c1d95 !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-amber-200,
+html.pref-theme-light [data-admin-shell] .text-amber-300,
+html.pref-theme-light [data-admin-shell] .text-amber-400,
+html.pref-theme-light [data-admin-shell] .text-orange-200,
+html.pref-theme-light [data-admin-shell] .text-orange-300,
+html.pref-theme-light [data-admin-shell] .text-orange-400,
+html.pref-theme-light [data-admin-shell] .text-yellow-300,
+html.pref-theme-light [data-admin-shell] .text-yellow-400 {
+    color: #7c2d12 !important;
+}
+
+html.pref-theme-light [data-admin-shell] .text-red-300,
+html.pref-theme-light [data-admin-shell] .text-red-400,
+html.pref-theme-light [data-admin-shell] .text-red-600 {
+    color: #991b1b !important;
+}
+
+html.pref-theme-light [data-admin-shell] .tab-btn,
+html.pref-theme-light [data-admin-shell] button,
+html.pref-theme-light [data-admin-shell] a[class*="rounded"] {
+    font-weight: 600;
+}
+
+.glass-card {
+    background: linear-gradient(160deg, rgba(10, 14, 24, 0.86) 0%, rgba(8, 11, 20, 0.8) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 12px 36px rgba(2, 6, 23, 0.45);
+}
+
+.glass-card-hover {
+    transition: all 0.3s ease;
+}
+
+.glass-card-hover:hover {
+    border-color: rgba(168, 85, 247, 0.42);
+    box-shadow: 0 16px 44px rgba(76, 29, 149, 0.25);
+}
+
+.glass-card-float-hover:hover {
+    transform: translateY(-2px);
+}
+
+.admin-bg-pattern {
+    position: fixed;
+    inset: 0;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.admin-bg-pattern__grid {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(168, 85, 247, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.tab-btn {
+    transition: all 0.2s ease;
+    color: var(--no-text-mid);
+    background: var(--no-surface-muted);
+}
+
+.tab-btn.active {
+    background: rgba(168, 85, 247, 0.3);
+    border-color: rgba(192, 132, 252, 0.62);
+    color: #f3e8ff;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.34);
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.34);
+    transition: all 0.2s ease;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.36);
+    transition: all 0.2s ease;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+    box-shadow: 0 6px 18px rgba(168, 85, 247, 0.34);
+    transition: all 0.2s ease;
+}
+
+.staff-badge {
+    background: linear-gradient(135deg, #a855f7 0%, #c084fc 100%);
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+}
+
+.plugin-badge {
+    background: linear-gradient(135deg, #a855f7 0%, #c084fc 100%);
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+}
+
+.notification-badge {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    animation: pulse-badge 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.status-dot {
+    position: relative;
+}
+
+.status-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: inherit;
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    opacity: 0;
+}
+
+.status-dot.online::after {
+    opacity: 0.4;
+}
+
+@keyframes pulse-ring {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.4;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+.input-field {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(100, 116, 139, 0.56);
+    transition: all 0.2s ease;
+}
+
+.input-field:focus {
+    border-color: rgba(59, 130, 246, 0.7);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    outline: none;
+}
+
+.source-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.source-modrinth { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.source-papermc { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.source-manual { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+
+.level-suspicious {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.level-high-priority {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.level-confirmed-cheater {
+    background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+    color: white;
+}
+
+.status-pending { background: #6b7280; }
+.status-approved { background: #10b981; }
+.status-active { background: #3b82f6; }
+.status-completed { background: #22c55e; }
+.status-denied { background: #ef4444; }
+
+.toast {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.command-output {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.player-row {
+    transition: all 0.2s ease;
+}
+
+.player-row:hover {
+    background: rgba(168, 85, 247, 0.1);
+}
+
+.log-viewer {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.log-entry {
+    padding: 2px 8px;
+    border-bottom: 1px solid rgba(30, 30, 40, 0.3);
+}
+
+.log-entry:hover {
+    background: rgba(30, 30, 40, 0.3);
+}
+
+.player-card {
+    transition: all 0.2s ease;
+}
+
+.player-card:hover {
+    transform: translateY(-2px);
+    background: rgba(10, 10, 15, 0.8);
+}
+
+.section-title {
+    position: relative;
+    padding-left: 12px;
+}
+
+.section-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 70%;
+    background: linear-gradient(180deg, #a855f7, #c084fc);
+    border-radius: 2px;
+}
+
+/* Global focus state for keyboard users */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--no-focus);
+    outline-offset: 2px;
+}
+
+/* Improve critical readability without changing layout */
+[x-data="minecraftAdmin()"] .text-slate-400,
+[x-data="staffPanel()"] .text-slate-400 {
+    color: var(--no-text-mid) !important;
+}
+
+[x-data="minecraftAdmin()"] .text-slate-300,
+[x-data="staffPanel()"] .text-slate-300 {
+    color: var(--no-text-mid) !important;
+}
+
+[x-data="minecraftAdmin()"] .text-slate-200,
+[x-data="staffPanel()"] .text-slate-200 {
+    color: var(--no-text-high) !important;
+}
+
+[x-data="minecraftAdmin()"] .text-slate-500,
+[x-data="staffPanel()"] .text-slate-500 {
+    color: var(--no-text-low) !important;
+}
+
+[x-data="minecraftAdmin()"] .text-slate-600,
+[x-data="staffPanel()"] .text-slate-600 {
+    color: var(--no-text-faint) !important;
+}
+
+/* Guided operation state emphasis */
+.operation-card[data-op-state='running'] {
+    border-color: rgba(59, 130, 246, 0.45);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.14);
+}
+
+.operation-card[data-op-state='succeeded'] {
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.14);
+}
+
+.operation-card[data-op-state='failed'] {
+    border-color: rgba(239, 68, 68, 0.52);
+    box-shadow: 0 10px 34px rgba(127, 29, 29, 0.28);
+}
+
+.comment-card {
+    transition: all 0.2s ease;
+}
+
+.comment-card:hover {
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.config-viewer {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.config-viewer pre {
+    margin: 0;
+    padding: 1rem;
+    background: #1e293b !important;
+    border-radius: 0.5rem;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .tab-btn {
+        min-height: 40px;
+    }
+
+    .command-output {
+        font-size: 0.875rem;
+        padding: 0.625rem;
+        max-height: min(50vh, 300px);
+    }
+
+    .config-viewer {
+        font-size: 0.875rem;
+    }
+
+    .config-viewer pre {
+        padding: 0.75rem;
+    }
+}

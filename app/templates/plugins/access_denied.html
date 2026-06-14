@@ -1,0 +1,57 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Access Denied - Plugin Documentation{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div class="min-h-screen bg-[#050505] text-slate-300 font-sans flex items-center justify-center p-4">
+    {% include "components/admin_shell/background_pattern.html" %}
+
+    <div class="glass-card rounded-2xl p-8 max-w-md w-full text-center relative z-10">
+        <!-- Icon -->
+        <div class="w-20 h-20 rounded-2xl bg-red-500/15 flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="shield-x" class="w-10 h-10 text-red-400"></i>
+        </div>
+
+        <!-- Title -->
+        <h1 class="text-2xl font-bold text-white mb-3">접근 권한 없음</h1>
+
+        <!-- Message -->
+        <p class="text-slate-400 mb-6">
+            플러그인 문서 접근 권한이 비활성화되어 있습니다.<br>
+            관리자에게 문의하세요.
+        </p>
+
+        <!-- English fallback -->
+        <p class="text-xs text-slate-600 mb-8">
+            Plugin documentation access is disabled for your account.
+        </p>
+
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="/minecraft/staff"
+                class="px-6 py-3 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 font-medium transition-all">
+                <span class="flex items-center justify-center gap-2">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    스태프 패널로 돌아가기
+                </span>
+            </a>
+            {{ near.settings_button('Preferences') }}
+        </div>
+
+        <!-- Contact hint -->
+        <div class="mt-8 p-4 rounded-xl bg-[#0a0a0a] border border-slate-700/30">
+            <div class="flex items-start gap-3 text-left">
+                <i data-lucide="info" class="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5"></i>
+                <div>
+                    <p class="text-sm text-slate-400">
+                        이 권한은 관리자가 <strong class="text-white">/minecraft/admin</strong> 페이지에서 
+                        스태프 설정을 통해 변경할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

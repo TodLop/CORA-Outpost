@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="{% block html_lang %}ko{% endblock %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Project Octopus{% endblock %}</title>
+    {% block meta %}
+    {% set resolved_page_title = page_title|default('localhost:8000 - 프로젝트 허브 | Projects Hub') %}
+    {% set resolved_page_description = page_description|default('포트폴리오, 운영 자동화, 커뮤니티 시스템 프로젝트를 한곳에서 소개합니다.') %}
+    {% set resolved_canonical = canonical_url|default(request.url if request is defined else 'https://localhost:8000/') %}
+    <meta name="description" content="{{ resolved_page_description }}">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="{{ resolved_canonical }}">
+    <meta property="og:title" content="{{ resolved_page_title }}">
+    <meta property="og:description" content="{{ resolved_page_description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ resolved_canonical }}">
+    <meta property="og:site_name" content="localhost:8000">
+    <meta property="og:locale" content="ko_KR">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ resolved_page_title }}">
+    <meta name="twitter:description" content="{{ resolved_page_description }}">
+    {% endblock %}
+
+    {% include "components/favicon_links.html" %}
+
+    {% set static_ver = request.app.version if request is defined else '1' %}
+    {% set tailwind_src = '/static/vendor/tailwindcss-cdn.js' %}
+    {% set htmx_src = '/static/vendor/htmx-1.9.10.min.js' %}
+    {% set alpine_src = '/static/vendor/alpinejs-3.14.9.min.js' %}
+    {% set lucide_src = '/static/vendor/lucide-0.468.0.min.js' %}
+
+    <!-- Tailwind CSS (local vendor) -->
+    <script src="{{ tailwind_src }}?v={{ static_ver }}"></script>
+
+    <!-- HTMX for dynamic content (local vendor) -->
+    <script src="{{ htmx_src }}?v={{ static_ver }}"></script>
+
+    <!-- Alpine.js for reactive UI (local vendor) -->
+    <script defer src="{{ alpine_src }}?v={{ static_ver }}"></script>
+
+    <!-- Lucide Icons (local vendor) -->
+    <script src="{{ lucide_src }}?v={{ static_ver }}"></script>
+
+    <!-- Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #050505;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Glass panel effect */
+        .glass-panel {
+            background: rgba(10, 10, 15, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Glitch text animation */
+        .glitch-text {
+            position: relative;
+        }
+
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -1px 0 #00ffff;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -1px 0 #ff00ff;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(30px, 9999px, 10px, 0); }
+            20% { clip: rect(80px, 9999px, 90px, 0); }
+            40% { clip: rect(10px, 9999px, 40px, 0); }
+            60% { clip: rect(50px, 9999px, 20px, 0); }
+            80% { clip: rect(20px, 9999px, 60px, 0); }
+            100% { clip: rect(70px, 9999px, 30px, 0); }
+        }
+
+        @keyframes glitch-anim2 {
+            0% { clip: rect(10px, 9999px, 80px, 0); }
+            20% { clip: rect(30px, 9999px, 10px, 0); }
+            40% { clip: rect(90px, 9999px, 20px, 0); }
+            60% { clip: rect(10px, 9999px, 50px, 0); }
+            80% { clip: rect(60px, 9999px, 30px, 0); }
+            100% { clip: rect(40px, 9999px, 70px, 0); }
+        }
+
+        /* Status indicators */
+        .status-online {
+            background-color: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-offline {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        .status-coming-soon {
+            background-color: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        /* Scanline effect */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(34,211,238,0.1) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100%; }
+        }
+
+        /* Card hover effect */
+        .project-card {
+            transition: all 0.3s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(34, 211, 238, 0.3);
+            box-shadow: 0 20px 40px -12px rgba(34, 211, 238, 0.15);
+        }
+
+        /* Admin badge glow */
+        .admin-badge {
+            animation: admin-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes admin-pulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(168, 85, 247, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.8); }
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+
+<body class="min-h-screen bg-[#050505] text-white antialiased">
+    <!-- Scanline overlay -->
+    <div class="scanline fixed inset-0 pointer-events-none z-50"></div>
+
+    {% block content %}{% endblock %}
+
+    <!-- Initialize Lucide icons -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // Re-initialize icons after HTMX swaps
+        document.body.addEventListener('htmx:afterSwap', () => {
+            lucide.createIcons();
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

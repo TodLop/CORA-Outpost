@@ -1,0 +1,30 @@
+{% macro operation_card(op_type, title, description, icon_color, icon_svg, confirm_message="") -%}
+<div class="operation-card glass-card glass-card-hover rounded-2xl p-5 border border-slate-700/30">
+    <div class="flex items-start justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-800/70">
+                <svg class="w-6 h-6 text-{{ icon_color }}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {{ icon_svg|safe }}
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-white">{{ title }}</h3>
+                <p class="text-sm text-slate-400 mt-0.5">{{ description }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if confirm_message %}
+    <p class="mb-4 text-xs text-slate-500">{{ confirm_message }}</p>
+    {% endif %}
+
+    <button type="button"
+            class="admin-button admin-button-primary w-full"
+            data-op="{{ op_type }}"
+            @click="executeOperation && executeOperation('{{ op_type }}')">
+        <i data-lucide="play" class="h-4 w-4"></i>
+        <span>Run</span>
+    </button>
+</div>
+{%- endmacro %}
+

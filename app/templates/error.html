@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Sanctuary | Access Denied</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #050505;
+            overflow: hidden;
+        }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(239, 68, 68, 0.1) 50%, rgba(0,0,0,0) 100%); /* Red tint */
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100%; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center relative bg-[#0a0a0a]">
+    <div class="scanline"></div>
+    
+    <div class="absolute inset-0 z-0 opacity-20" 
+         style="background-image: radial-gradient(#333 1px, transparent 1px); background-size: 30px 30px;">
+    </div>
+
+    <div class="relative z-10 max-w-md w-full p-8 text-center">
+        <div class="flex justify-center mb-6">
+            <div class="p-4 rounded-full bg-red-900/20 border border-red-500/30 animate-pulse">
+                <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500"></i>
+            </div>
+        </div>
+
+        <h1 class="text-6xl font-bold text-white font-orbitron mb-2 tracking-tighter text-red-500" style="text-shadow: 0 0 10px rgba(239,68,68,0.5);">
+            {{ error_title | default("404") }}
+        </h1>
+        
+        <h2 class="text-xl text-red-400 font-bold tracking-[0.3em] uppercase mb-6 border-b border-red-900/30 pb-4 inline-block">
+            Link Severed
+        </h2>
+
+        <p class="text-gray-400 text-lg mb-8 leading-relaxed">
+            {{ error_message | default("The neural link you are trying to access is invalid, expired, or has been revoked by the operator.") }}
+        </p>
+
+        <a href="/" class="group relative inline-flex items-center gap-2 px-8 py-3 bg-gray-900 border border-gray-700 hover:border-red-500/50 rounded-lg text-gray-300 hover:text-white transition-all duration-300">
+            <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"></i>
+            <span class="font-mono tracking-wider">RETURN TO BASE</span>
+        </a>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

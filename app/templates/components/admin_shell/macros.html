@@ -1,0 +1,17 @@
+{% macro back_button(href) -%}
+<a href="{{ href }}"
+   class="group flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition-all">
+    <i data-lucide="arrow-left"
+       class="w-5 h-5 text-slate-400 group-hover:text-white group-hover:-translate-x-0.5 transition-all"></i>
+</a>
+{%- endmacro %}
+
+{% macro settings_button(label='Settings') -%}
+<button type="button" title="{{ label }}"
+        onclick="window.dispatchEvent(new CustomEvent('open-admin-settings'))"
+        class="admin-button admin-button-secondary flex-1 sm:flex-none">
+    <i data-lucide="settings" class="h-4 w-4"></i>
+    <span>{{ label }}</span>
+</button>
+{%- endmacro %}
+

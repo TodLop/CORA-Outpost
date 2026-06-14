@@ -1,0 +1,92 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Backend Operations Docs - Project Octopus{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div class="min-h-screen bg-[#050505] text-slate-300 font-sans">
+    {% include "components/admin_shell/background_pattern.html" %}
+
+    <header class="sticky top-0 z-30 border-b border-amber-500/20 bg-[#0a0a0a]/80 backdrop-blur-xl">
+        <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center gap-4">
+                {{ near.back_button('/minecraft/admin' if is_admin else '/minecraft/staff') }}
+                <div class="flex items-center gap-3">
+                    <div class="rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1.5">
+                        <span class="text-xs font-bold tracking-wider text-amber-200">OPERATIONS</span>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-tight text-white">Backend Runbook</h1>
+                        <p class="text-xs text-slate-500">Sensitive service behavior and troubleshooting notes</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                {{ near.settings_button() }}
+                <div class="hidden sm:flex items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/40 px-4 py-2">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                        <span class="text-sm font-bold text-white">{{ (user_info.name or user_info.email)[0] | upper }}</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium text-white">{{ user_info.name or 'Operator' }}</span>
+                        <span class="text-xs text-slate-500">{{ 'Admin' if is_admin else 'Staff' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 py-6 sm:px-6 lg:grid-cols-[300px_1fr] lg:px-8">
+        <aside class="glass-panel rounded-xl border border-slate-700/50 p-4">
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Documents</h2>
+            <div class="space-y-2">
+                {% for doc in docs %}
+                <a href="/minecraft/backend-docs/{{ doc.slug }}"
+                    class="block rounded-lg border px-3 py-2 transition-all {% if selected_doc.slug == doc.slug %}border-amber-500/40 bg-amber-500/15 text-amber-200{% else %}border-slate-700/50 bg-slate-900/40 text-slate-300 hover:border-slate-600{% endif %}">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-medium">{{ doc.title }}</p>
+                        {% if doc.audience == 'admin_only' %}
+                        <span class="rounded-full border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-200">Admin Only</span>
+                        {% else %}
+                        <span class="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Staff Visible</span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500">{{ doc.slug }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <section class="glass-panel rounded-xl border border-slate-700/50 p-5 sm:p-6">
+            <div class="mb-5 rounded-lg border border-slate-700/50 bg-[#0b0f14] p-3 text-xs text-slate-400">
+                <div class="mb-3 flex flex-wrap items-center gap-2">
+                    {% if selected_doc.audience == 'admin_only' %}
+                    <span class="rounded-full border border-red-500/40 bg-red-500/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-red-200">Admin Only</span>
+                    {% else %}
+                    <span class="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">Staff Visible</span>
+                    {% endif %}
+                    <span class="rounded-full border border-slate-600/60 bg-slate-800/50 px-2.5 py-0.5 text-[11px] text-slate-300">Owner: {{ selected_doc.owner or 'operations' }}</span>
+                    {% if selected_doc.last_reviewed_at %}
+                    <span class="rounded-full border border-slate-600/60 bg-slate-800/50 px-2.5 py-0.5 text-[11px] text-slate-300">Reviewed: {{ selected_doc.last_reviewed_at }}</span>
+                    {% endif %}
+                </div>
+                <p><span class="font-semibold text-slate-300">Source:</span> <code>{{ selected_doc.source_path }}</code></p>
+                <p class="mt-1"><span class="font-semibold text-slate-300">Updated (UTC):</span> {{ selected_doc.updated_at }}</p>
+                {% if selected_doc.tags %}
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                    {% for tag in selected_doc.tags %}
+                    <span class="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">#{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <article class="backend-doc leading-relaxed">
+                {{ selected_doc.html | safe }}
+            </article>
+        </section>
+    </main>
+</div>
+{% endblock %}

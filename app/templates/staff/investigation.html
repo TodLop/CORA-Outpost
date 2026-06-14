@@ -1,0 +1,447 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Investigation Dashboard - CORA{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div x-data="investigationDashboard()" x-init="init()"
+    class="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-purple-500/30">
+
+    {% include "components/admin_shell/background_pattern.html" %}
+
+    <!-- Toast Notifications -->
+    <div class="fixed top-4 right-4 z-50 space-y-2">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="toast glass-card px-4 py-3 rounded-lg flex items-center gap-3"
+                :class="{'border-green-500/30': toast.type === 'success', 'border-red-500/30': toast.type === 'error'}">
+                <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'"
+                    :class="toast.type === 'success' ? 'text-green-400' : 'text-red-400'" class="w-5 h-5"></i>
+                <span x-text="toast.message" class="text-sm"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-30 border-b border-purple-500/20 bg-[#0a0a0a]/80 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-4">
+                    {{ near.back_button('/minecraft/staff') }}
+                    <div class="flex items-center gap-3">
+                        <div class="staff-badge px-3 py-1.5 rounded-lg">
+                            <span class="text-xs font-bold text-white tracking-wider">INVESTIGATION</span>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-white tracking-tight">
+                                Investigation Dashboard
+                            </h1>
+                            <p class="text-xs text-slate-500">Player Monitoring & Investigation</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 text-sm text-slate-400">
+                    {{ near.settings_button('Preferences') }}
+                    <span>{{ user_info.email }}</span>
+                    {% if is_admin %}
+                    <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs">ADMIN</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-2xl font-bold text-amber-400">{{ watchlist_stats.suspicious }}</div>
+                <div class="text-xs text-slate-500">Suspicious</div>
+            </div>
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-2xl font-bold text-red-400">{{ watchlist_stats.high_priority }}</div>
+                <div class="text-xs text-slate-500">High Priority</div>
+            </div>
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-2xl font-bold text-red-600">{{ watchlist_stats.confirmed_cheaters }}</div>
+                <div class="text-xs text-slate-500">Confirmed Cheaters</div>
+            </div>
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-2xl font-bold text-purple-400">{{ watchlist_stats.total_active }}</div>
+                <div class="text-xs text-slate-500">Total Active</div>
+            </div>
+        </div>
+
+        <!-- Back to Main Panel -->
+        <div class="mb-4">
+            <a href="/minecraft/staff" class="inline-flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-purple-400 transition-colors">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Main Panel
+            </a>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap gap-2 mb-6 border-b border-slate-700/50 pb-4">
+            <button @click="activeTab = 'watchlist'" class="tab-btn px-4 py-2 rounded-lg border border-slate-700/50 text-sm"
+                :class="{'active': activeTab === 'watchlist'}">
+                <i data-lucide="eye" class="w-4 h-4 inline mr-2"></i>Watchlist
+            </button>
+            <button @click="activeTab = 'session'" class="tab-btn px-4 py-2 rounded-lg border border-slate-700/50 text-sm"
+                :class="{'active': activeTab === 'session'}">
+                <i data-lucide="search" class="w-4 h-4 inline mr-2"></i>My Session
+            </button>
+            <button @click="activeTab = 'lookup'" class="tab-btn px-4 py-2 rounded-lg border border-slate-700/50 text-sm"
+                :class="{'active': activeTab === 'lookup'}">
+                <i data-lucide="user-search" class="w-4 h-4 inline mr-2"></i>Player Lookup
+            </button>
+        </div>
+
+        <!-- Watchlist Tab -->
+        <div x-show="activeTab === 'watchlist'" x-cloak>
+            <div class="glass-card rounded-xl p-6">
+                <h2 class="section-title text-lg font-semibold text-white mb-4">Active Watchlist</h2>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-700/50">
+                                <th class="py-3 px-2">Player</th>
+                                <th class="py-3 px-2">Level</th>
+                                <th class="py-3 px-2">Reason</th>
+                                <th class="py-3 px-2">Tags</th>
+                                <th class="py-3 px-2">Added</th>
+                                <th class="py-3 px-2">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in watchlist_entries %}
+                            <tr class="player-row border-b border-slate-700/30">
+                                <td class="py-3 px-2 font-medium text-white">{{ entry.player }}</td>
+                                <td class="py-3 px-2">
+                                    <span class="px-2 py-1 rounded text-xs font-medium level-{{ entry.level }}">
+                                        {{ entry.level }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-2 max-w-xs truncate">{{ entry.reason }}</td>
+                                <td class="py-3 px-2">
+                                    {% for tag in entry.tags[:3] %}
+                                    <span class="px-1.5 py-0.5 rounded text-xs bg-slate-700/50 mr-1">{{ tag }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="py-3 px-2 text-slate-500">{{ entry.added_at[:10] }}</td>
+                                <td class="py-3 px-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <button @click="startInvestigation('{{ entry.player }}')"
+                                            class="btn-primary px-3 py-2 min-h-[40px] rounded text-xs text-white">
+                                            Investigate
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-slate-500">
+                                    No players on watchlist
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Tab -->
+        <div x-show="activeTab === 'session'" x-cloak>
+            <div class="glass-card rounded-xl p-6">
+                <h2 class="section-title text-lg font-semibold text-white mb-4">Current Investigation Session</h2>
+
+                {% if active_investigation %}
+                <div class="mb-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <span class="text-slate-400 text-sm">Investigating:</span>
+                            <span class="text-white font-bold text-lg ml-2">{{ active_investigation.player }}</span>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs bg-blue-500 text-white">ACTIVE</span>
+                    </div>
+                    <div class="text-xs text-slate-500 mb-4">Started: {{ active_investigation.started_at }}</div>
+
+                    <!-- Investigation Tools -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <button @click="runGrimac('{{ active_investigation.player }}')"
+                            class="btn-secondary px-4 py-2 rounded-lg text-white text-sm">
+                            <i data-lucide="shield-check" class="w-4 h-4 inline mr-2"></i>GrimAC History
+                        </button>
+                        <button @click="runMtrack('{{ active_investigation.player }}')"
+                            class="btn-secondary px-4 py-2 rounded-lg text-white text-sm">
+                            <i data-lucide="activity" class="w-4 h-4 inline mr-2"></i>mTrack Check
+                        </button>
+                    </div>
+
+                    <!-- Command Output -->
+                    <div x-show="commandOutput" class="mb-4">
+                        <div class="text-xs text-slate-500 mb-2">Command Output:</div>
+                        <div class="command-output text-green-400" x-text="commandOutput"></div>
+                    </div>
+
+                    <!-- End Session Form -->
+                    <div class="border-t border-slate-700/50 pt-4 mt-4">
+                        <h3 class="text-sm font-medium text-slate-300 mb-3">End Investigation</h3>
+                        <div class="space-y-3">
+                            <textarea x-model="findings" placeholder="Enter your findings..."
+                                class="input-field w-full px-3 py-2 rounded-lg text-white text-sm" rows="3"></textarea>
+                            <div class="flex items-center gap-3">
+                                <select x-model="recommendation"
+                                    class="input-field px-3 py-2 rounded-lg text-white text-sm">
+                                    <option value="watch">Continue Watching</option>
+                                    <option value="warn">Recommend Warning</option>
+                                    <option value="ban">Recommend Ban</option>
+                                    <option value="clear">Clear - No Issues</option>
+                                </select>
+                                <button @click="endInvestigation('{{ active_investigation.id }}')"
+                                    class="btn-primary px-4 py-2 rounded-lg text-white text-sm flex-shrink-0">
+                                    Submit & End
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-8 text-slate-500">
+                    <i data-lucide="search" class="w-12 h-12 mx-auto mb-4 opacity-30"></i>
+                    <p>No active investigation</p>
+                    <p class="text-xs mt-2">Select a player from the Watchlist to start</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Lookup Tab -->
+        <div x-show="activeTab === 'lookup'" x-cloak>
+            <div class="glass-card rounded-xl p-6">
+                <h2 class="section-title text-lg font-semibold text-white mb-4">Player Lookup</h2>
+
+                <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                    <input type="text" x-model="lookupPlayer" placeholder="Enter player name..."
+                        class="input-field w-full sm:flex-1 px-4 py-2 rounded-lg text-white"
+                        @keyup.enter="lookupPlayerInfo()">
+                    <button @click="lookupPlayerInfo()" class="btn-primary w-full sm:w-auto px-6 py-2.5 rounded-lg text-white">
+                        Search
+                    </button>
+                </div>
+
+                <!-- Lookup Results -->
+                <div x-show="lookupResult" class="space-y-4">
+                    <div class="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                        <h3 class="font-medium text-white mb-3" x-text="lookupPlayer"></h3>
+
+                        <!-- Watchlist Status -->
+                        <div class="mb-4">
+                            <span class="text-slate-500 text-sm">Watchlist Status: </span>
+                            <span x-show="lookupResult.watchlisted" class="text-red-400 font-medium">On Watchlist</span>
+                            <span x-show="!lookupResult.watchlisted" class="text-green-400 font-medium">Not Watchlisted</span>
+                        </div>
+
+                        <!-- Notes -->
+                        <div x-show="lookupResult.notes && lookupResult.notes.length > 0">
+                            <h4 class="text-sm font-medium text-slate-400 mb-2">Notes:</h4>
+                            <template x-for="note in lookupResult.notes" :key="note.id">
+                                <div class="p-3 rounded bg-slate-900/50 mb-2">
+                                    <p class="text-sm text-slate-300" x-text="note.content"></p>
+                                    <p class="text-xs text-slate-500 mt-1">
+                                        <span x-text="note.author_name"></span> - <span x-text="note.created_at.slice(0, 10)"></span>
+                                    </p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Add Note -->
+                        <div class="mt-4 pt-4 border-t border-slate-700/50">
+                            <h4 class="text-sm font-medium text-slate-400 mb-2">Add Note</h4>
+                            <textarea x-model="newNote" placeholder="Add a note about this player..."
+                                class="input-field w-full px-3 py-2 rounded-lg text-white text-sm mb-2" rows="2"></textarea>
+                            <select x-model="noteCategory" class="input-field px-3 py-1 rounded text-sm text-white mb-2">
+                                <option value="general">General</option>
+                                <option value="behavior">Behavior</option>
+                                <option value="investigation">Investigation</option>
+                                <option value="ban-related">Ban Related</option>
+                            </select>
+                            <button @click="addNote()" class="btn-secondary px-4 py-1.5 rounded text-white text-sm ml-2">
+                                Add Note
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Player Autocomplete Datalist -->
+    <datalist id="staff-player-autocomplete">
+        <template x-for="player in whitelistPlayers" :key="player">
+            <option :value="player"></option>
+        </template>
+    </datalist>
+</div>
+
+<script>
+function investigationDashboard() {
+    return {
+        activeTab: 'watchlist',
+        toasts: [],
+        commandOutput: '',
+        findings: '',
+        recommendation: 'watch',
+        lookupPlayer: '',
+        lookupResult: null,
+        newNote: '',
+        noteCategory: 'general',
+        whitelistPlayers: [],
+
+        init() {
+            this.loadWhitelistAutocomplete();
+        },
+
+        showToast(message, type = 'success') {
+            const id = Date.now();
+            this.toasts.push({ id, message, type });
+            setTimeout(() => {
+                this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 4000);
+        },
+
+        async startInvestigation(player) {
+            try {
+                const response = await fetch('/minecraft/staff/api/investigation/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(`Investigation started for ${player}`);
+                    this.activeTab = 'session';
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    this.showToast(data.error || 'Failed to start investigation', 'error');
+                }
+            } catch (e) {
+                this.showToast('Error starting investigation', 'error');
+            }
+        },
+
+        async runGrimac(player) {
+            this.commandOutput = 'Running grimac history...';
+            try {
+                const response = await fetch(`/minecraft/staff/api/investigation/grimac/${player}`);
+                const data = await response.json();
+                this.commandOutput = data.response || data.error || 'No response';
+            } catch (e) {
+                this.commandOutput = 'Error executing command';
+            }
+        },
+
+        async runMtrack(player) {
+            this.commandOutput = 'Running mtrack check...';
+            try {
+                const response = await fetch(`/minecraft/staff/api/investigation/mtrack/${player}`);
+                const data = await response.json();
+                this.commandOutput = data.response || data.error || 'No response';
+            } catch (e) {
+                this.commandOutput = 'Error executing command';
+            }
+        },
+
+        async endInvestigation(sessionId) {
+            if (!this.findings.trim()) {
+                this.showToast('Please enter findings', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`/minecraft/staff/api/investigation/${sessionId}/end`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        findings: this.findings,
+                        recommendation: this.recommendation
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast('Investigation completed');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    this.showToast(data.error || 'Failed to end investigation', 'error');
+                }
+            } catch (e) {
+                this.showToast('Error ending investigation', 'error');
+            }
+        },
+
+        async lookupPlayerInfo() {
+            if (!this.lookupPlayer.trim()) return;
+            try {
+                const [watchlistRes, notesRes] = await Promise.all([
+                    fetch(`/minecraft/staff/api/watchlist/check/${this.lookupPlayer}`),
+                    fetch(`/minecraft/staff/api/notes/${this.lookupPlayer}`)
+                ]);
+                const watchlistData = await watchlistRes.json();
+                const notesData = await notesRes.json();
+
+                this.lookupResult = {
+                    watchlisted: watchlistData.watchlisted,
+                    entry: watchlistData.entry,
+                    notes: notesData.notes || []
+                };
+            } catch (e) {
+                this.showToast('Error looking up player', 'error');
+            }
+        },
+
+        async addNote() {
+            if (!this.lookupPlayer || !this.newNote.trim()) {
+                this.showToast('Enter note content', 'error');
+                return;
+            }
+            try {
+                const response = await fetch('/minecraft/staff/api/notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player: this.lookupPlayer,
+                        content: this.newNote,
+                        category: this.noteCategory
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast('Note added');
+                    this.newNote = '';
+                    this.lookupPlayerInfo();
+                } else {
+                    this.showToast(data.error || 'Failed to add note', 'error');
+                }
+            } catch (e) {
+                this.showToast('Error adding note', 'error');
+            }
+        },
+
+        async loadWhitelistAutocomplete() {
+            try {
+                const response = await fetch('/minecraft/staff/api/whitelist/autocomplete');
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    this.whitelistPlayers = data.players || [];
+                }
+            } catch (e) {
+                console.error('Failed to load whitelist autocomplete:', e);
+            }
+        }
+    }
+}
+</script>
+{% endblock %}
