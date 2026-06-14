@@ -1,4 +1,5 @@
 from app.modules.registry import ModuleRegistry
+from scripts import check_public_extract
 
 
 EXCLUDED_MODULES = {
@@ -35,3 +36,14 @@ def test_registry_allows_runtime_opt_in_only(monkeypatch):
     assert registry.enabled_slugs == {"minecraft_admin", "minecraft_runtime"}
     assert not (registry.enabled_slugs & EXCLUDED_MODULES)
 
+
+def test_public_extract_remote_policy_is_enforced_locally(monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    assert check_public_extract.should_enforce_local_only_remote_policy() is True
+
+
+def test_public_extract_remote_policy_allows_github_actions_checkout(monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+
+    assert check_public_extract.should_enforce_local_only_remote_policy() is False

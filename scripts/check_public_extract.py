@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -119,6 +120,11 @@ def iter_files() -> list[Path]:
     return files
 
 
+def should_enforce_local_only_remote_policy() -> bool:
+    """GitHub Actions checkouts always have an origin remote."""
+    return os.getenv("GITHUB_ACTIONS", "").strip().lower() != "true"
+
+
 def main() -> int:
     errors: list[str] = []
     files = iter_files()
@@ -171,7 +177,7 @@ def main() -> int:
         stderr=subprocess.PIPE,
         check=False,
     )
-    if remote_output.stdout.strip():
+    if should_enforce_local_only_remote_policy() and remote_output.stdout.strip():
         errors.append("git remotes are configured; public extraction must start local-only")
 
     if errors:
