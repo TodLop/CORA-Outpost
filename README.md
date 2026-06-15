@@ -17,6 +17,46 @@ does not include the public community website, player records, economy, market,
 donations, Wrapped pages, portfolio/finance tools, proxy modules, runtime data,
 credentials, logs, backups, or incident artifacts.
 
+## Public Preview
+
+CORA-Outpost is currently prepared as a public-safe extraction, not a packaged
+one-command demo. The screenshots below are redacted crops from the live operator
+workflow: top navigation, account identity, private menus, live logs, player
+records, and incident data are intentionally omitted.
+
+| Admin operations | Moderation workflow |
+| --- | --- |
+| ![CORA-Outpost admin operations dashboard](docs/assets/readme/admin-ops-dashboard.png) | ![CORA-Outpost moderation workflow](docs/assets/readme/moderation-workflow.png) |
+
+| Plugin documentation | Metrics and runbooks |
+| --- | --- |
+| ![CORA-Outpost plugin documentation](docs/assets/readme/plugin-documentation.png) | ![CORA-Outpost metrics analytics](docs/assets/readme/metrics-analytics.png) |
+
+![CORA-Outpost backend runbook documentation](docs/assets/readme/backend-runbook.png)
+
+The public preview shows the shape of the product: a protected Minecraft
+operations cockpit for plugin safety, staff workflows, metrics, backups,
+maintenance, and runbook-driven recovery.
+
+Demo mode is on the roadmap. Until fake fixtures are implemented, live
+screenshots are kept narrow and redacted instead of shipping runtime data in the
+repository.
+
+## Quick Start
+
+Use the local setup below to verify the application factory and run the admin
+surface with placeholder configuration. For a guided preview of what is and is
+not safe to show publicly, see [docs/DEMO.md](docs/DEMO.md).
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+SECRET_KEY=replace-with-a-long-random-secret ENABLED_MODULES=minecraft_admin \
+  uvicorn app:create_app --factory --host 127.0.0.1 --port 8000
+```
+
 ## Why This Exists
 
 CORA-Outpost was not designed as another generic hosting panel. It came from
