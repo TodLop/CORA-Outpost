@@ -69,6 +69,18 @@ generic game-hosting control panel.
 | Dangerous command reduction | Varies | Explicit design goal |
 | Origin story | General server management | Built from live Minecraft server operation |
 
+## Companion Project
+
+[CORA-ServerShop](https://github.com/TodLop/CORA-ServerShop) is a companion
+Paper plugin that demonstrates the kind of server-specific plugin CORA-Outpost
+is designed to operate around: economy features, permission-backed perks,
+plugin documentation, configuration safety, and staff-facing operational
+runbooks.
+
+CORA-Outpost does not require CORA-ServerShop, but the two projects together
+show the full pattern: a protected operations cockpit plus a custom Minecraft
+plugin layer.
+
 ## Architecture
 
 ```mermaid
