@@ -8,8 +8,8 @@ anything from the private CORA-live deployment.
 
 - Keep README positioning, screenshots, setup, and data-hygiene notes aligned
   with the public extraction boundary.
-- Prepare a `v0.1.0-public-preview` release note after the repository is
-  manually reviewed.
+- Maintain the `v0.1.0-public-preview` release notes as the first public preview
+  reference point.
 - Add a fake-data demo mode so visitors can run and inspect the admin workflow
   without connecting to a real Minecraft server.
 - Document which routes are intentionally disabled in the public extraction.

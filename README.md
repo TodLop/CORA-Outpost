@@ -17,6 +17,14 @@ does not include the public community website, player records, economy, market,
 donations, Wrapped pages, portfolio/finance tools, proxy modules, runtime data,
 credentials, logs, backups, or incident artifacts.
 
+## Version
+
+Current public preview: [`v0.1.0-public-preview`](https://github.com/TodLop/CORA-Outpost/releases/tag/v0.1.0-public-preview).
+
+This version marks the first public documentation preview of CORA-Outpost. It is
+ready for repository review, screenshots, and architecture inspection, but it is
+not yet a bundled fake-data demo.
+
 ## Public Preview
 
 CORA-Outpost is currently prepared as a public-safe extraction, not a packaged
