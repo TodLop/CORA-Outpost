@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 import re
 import subprocess
 import sys
@@ -43,21 +44,31 @@ BLOCKED_PATH_PATTERNS = (
     re.compile(r"(^|/)economy(/|$)"),
     re.compile(r"(^|/)portfolio_private(/|$)"),
 )
-BLOCKED_TEXT_PATTERNS = {
-    "example.invalid": "live domain",
-    "example-host": "live host marker",
-    "nearoutpost.example.invalid": "live Minecraft host",
-    "owner@example.com": "live owner email",
-    "staff@example.com": "live staff email",
-    "ExampleStaff": "live staff Minecraft ID",
-    "ExamplePlayer": "live Minecraft ID",
-    "ExamplePlayerA": "live-looking player fixture",
-    "ExamplePlayerB": "live-looking player fixture",
-    "ExamplePlayerC": "live-looking player fixture",
-    ".example_user": "live proxy Minecraft ID",
-    "/path/to/user": "local absolute path",
-    "discord.example.com/invite": "live Discord invite",
+GENERIC_SENSITIVE_TEXT_PATTERNS = {
+    re.compile(r"/Users/[A-Za-z0-9._-]+"): "local absolute path",
 }
+HASHED_BLOCKED_TEXT_PATTERNS = {
+    "b1bcbb4c971cb44715380c0b487a2d7b20ae97aaaaf923729426ce87a810e637": "live domain",
+    "9e2db14f5c4e90c99776726c301f46ab24c68534c9529e3f63b4f60367a4cccf": "live host marker",
+    "a3edcb290dc0388567978681ee683ebd443ae0422b7dc75bc178a6603131f951": "live Minecraft host",
+    "66230b24a42106bb693362f34b0dc406e60c3de76aa9f043048ea09569cc68cc": "live owner email",
+    "ce94ac67cd5b6875e9b0903b9b295caaa53e75fc68504e40fdc2effa35012ef2": "live staff email",
+    "fc378a192f44bbfb1205c9266f882c437f3317f68fcb41b1f29350acc901eb1f": "live staff Minecraft ID",
+    "21c92434c590abc936ecc14436943f375ba04ec660941922d35da148483a90cf": "live Minecraft ID",
+    "e2b7e11982e107fa6af75c450053842b0e78f86793a806df533db1925651a594": "live-looking player fixture",
+    "0255fcd2a877dc813b27f7eb3eaa57157831acb550828ada2a92b520fb883f32": "live-looking player fixture",
+    "7f2959db8a1693aebfde9dcc8e43094bf6488d46dc433d560850e5c492f545e6": "live-looking player fixture",
+    "3f2283c8d5866960e8e5fffbb72bf007b2635a9059f14e9bd8e6fc8f6617f123": "live proxy Minecraft ID",
+    "2964ff775e37816b807d1e036a3146901efc58fbb98e01c249ea2e578e7ea7e7": "local absolute path",
+    "4849248b6ccb64682c98af1cf460e0d0208afdd6aba28d109db69b179b963459": "live Discord invite",
+}
+HASH_CANDIDATE_PATTERNS = (
+    re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    re.compile(r"(?:https?://)?discord\.gg/[A-Za-z0-9_-]+"),
+    re.compile(r"/Users/[A-Za-z0-9._/-]+"),
+    re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}(?:/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*)?"),
+    re.compile(r"(?<![A-Za-z0-9_])[.]?[A-Za-z0-9_][A-Za-z0-9_.-]{2,63}(?![A-Za-z0-9_])"),
+)
 BLOCKED_CODE_PATTERNS = {
     "from app.routers import finance": "finance router import",
     "admin_economy": "economy admin router",
@@ -120,6 +131,19 @@ def iter_files() -> list[Path]:
     return files
 
 
+def hashed_text_candidates(text: str) -> set[str]:
+    candidates: set[str] = set()
+    for pattern in HASH_CANDIDATE_PATTERNS:
+        for match in pattern.finditer(text):
+            value = match.group(0).strip(".,;:()[]{}<>\"'")
+            if not value:
+                continue
+            candidates.add(value)
+            if value.startswith(("http://", "https://")):
+                candidates.add(value.split("://", 1)[1])
+    return candidates
+
+
 def should_enforce_local_only_remote_policy() -> bool:
     """GitHub Actions checkouts always have an origin remote."""
     return os.getenv("GITHUB_ACTIONS", "").strip().lower() != "true"
@@ -149,9 +173,14 @@ def main() -> int:
 
         if rel in {"scripts/check_public_extract.py", "tests/test_public_extract_scope.py"}:
             continue
-        for needle, label in BLOCKED_TEXT_PATTERNS.items():
-            if needle in text:
-                errors.append(f"{label} found in {rel}: {needle}")
+        for pattern, label in GENERIC_SENSITIVE_TEXT_PATTERNS.items():
+            if pattern.search(text):
+                errors.append(f"{label} found in {rel}")
+        for candidate in hashed_text_candidates(text):
+            digest = hashlib.sha256(candidate.encode()).hexdigest()
+            if digest in HASHED_BLOCKED_TEXT_PATTERNS:
+                label = HASHED_BLOCKED_TEXT_PATTERNS[digest]
+                errors.append(f"{label} found in {rel}")
         for needle, label in BLOCKED_CODE_PATTERNS.items():
             if needle in text:
                 errors.append(f"{label} found in {rel}: {needle}")
