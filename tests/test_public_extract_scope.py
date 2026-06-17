@@ -47,3 +47,42 @@ def test_public_extract_remote_policy_allows_github_actions_checkout(monkeypatch
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
 
     assert check_public_extract.should_enforce_local_only_remote_policy() is False
+    assert check_public_extract.validate_remote_policy(
+        "origin\thttps://example.invalid/private.git (fetch)\n"
+        "origin\thttps://example.invalid/private.git (push)\n"
+    ) == []
+
+
+def test_public_extract_remote_policy_allows_expected_public_origin(monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    errors = check_public_extract.validate_remote_policy(
+        "origin\thttps://github.com/TodLop/CORA-Outpost.git (fetch)\n"
+        "origin\thttps://github.com/TodLop/CORA-Outpost.git (push)\n"
+    )
+
+    assert errors == []
+
+
+def test_public_extract_remote_policy_allows_expected_public_origin_over_ssh(monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    errors = check_public_extract.validate_remote_policy(
+        "origin\tgit@github.com:TodLop/CORA-Outpost.git (fetch)\n"
+        "origin\tgit@github.com:TodLop/CORA-Outpost.git (push)\n"
+    )
+
+    assert errors == []
+
+
+def test_public_extract_remote_policy_rejects_unexpected_remote(monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    errors = check_public_extract.validate_remote_policy(
+        "origin\thttps://github.com/TodLop/CORA-Outpost.git (fetch)\n"
+        "backup\thttps://example.invalid/private.git (push)\n"
+        "origin\thttps://example.invalid/private.git (push)\n"
+    )
+
+    assert any("unexpected git remote configured: backup" in error for error in errors)
+    assert any("unexpected git remote URL for origin" in error for error in errors)

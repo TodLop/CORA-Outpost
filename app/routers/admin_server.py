@@ -30,6 +30,8 @@ from app.services import minecraft_updater
 from app.services import minecraft_update_automation
 from app.services import minecraft_server
 from app.services import minecraft_settings
+from app.services import minecraft_setup
+from app.services import minecraft_setup_executor
 
 # Audit logger for admin actions
 admin_audit_logger = logging.getLogger("admin_audit")
@@ -1072,6 +1074,172 @@ async def run_update_automation_now(user_info: dict = Depends(require_minecraft_
     result = await minecraft_update_automation.run_once(manual=True, actor=actor)
     status_code = 200 if result.get("status") != "failed" else 500
     return JSONResponse(result, status_code=status_code)
+
+
+@router.get("/api/minecraft/setup/defaults")
+async def get_minecraft_setup_defaults(user_info: dict = Depends(require_minecraft_admin)):
+    """Return read-only defaults for the Minecraft setup preview."""
+    return JSONResponse({
+        "status": "ok",
+        **minecraft_setup.build_setup_defaults(),
+    })
+
+
+@router.post("/api/minecraft/setup/choose-folder")
+async def choose_minecraft_setup_folder(user_info: dict = Depends(require_minecraft_owner_or_manager_admin)):
+    """Open a native folder picker for setup preview without persisting anything."""
+    try:
+        selected_path = await asyncio.to_thread(minecraft_setup.choose_setup_server_directory)
+    except minecraft_setup.SetupFolderPickerCancelled as exc:
+        return JSONResponse({
+            "status": "cancelled",
+            "error": str(exc),
+        }, status_code=400)
+    except minecraft_setup.SetupFolderPickerUnavailable as exc:
+        return JSONResponse({
+            "status": "error",
+            "error": str(exc),
+        }, status_code=500)
+    except Exception as exc:
+        return JSONResponse({
+            "status": "error",
+            "error": str(exc),
+        }, status_code=500)
+
+    return JSONResponse({
+        "status": "ok",
+        "path": selected_path,
+    })
+
+
+@router.post("/api/minecraft/setup/preview")
+async def preview_minecraft_setup(request: Request, user_info: dict = Depends(require_minecraft_admin)):
+    """Render a read-only Minecraft setup preview without creating anything."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({
+            "status": "error",
+            "error_code": "setup_preview_invalid",
+            "error": "Request body must be valid JSON.",
+        }, status_code=400)
+
+    try:
+        preview = minecraft_setup.build_setup_preview(payload)
+    except minecraft_setup.SetupValidationError as exc:
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_preview_invalid",
+            "error": "Invalid Minecraft setup preview payload.",
+            "errors": exc.errors,
+            "warnings": exc.warnings,
+        }, status_code=400)
+
+    return JSONResponse({
+        "status": "ok",
+        "preview": preview,
+    })
+
+
+@router.post("/api/minecraft/setup/create-server")
+async def create_minecraft_setup_server(request: Request, user_info: dict = Depends(require_minecraft_admin)):
+    """Run the create-server preflight contract without writing server files."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_create_invalid",
+            "error": "Request body must be valid JSON.",
+        }, status_code=400)
+
+    try:
+        result = minecraft_setup.build_create_server_preflight(payload)
+    except minecraft_setup.SetupCreationNotReady as exc:
+        error = "Minecraft setup target is not ready for creation."
+        if "eula_accepted" in exc.errors:
+            error = "Minecraft setup policy is not ready for execution."
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_create_not_ready",
+            "error": error,
+            "errors": exc.errors,
+            "warnings": exc.warnings,
+            "preflight": exc.preflight,
+            "preview": exc.preview,
+        }, status_code=409)
+    except minecraft_setup.SetupValidationError as exc:
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_create_invalid",
+            "error": "Invalid Minecraft setup create-server payload.",
+            "errors": exc.errors,
+            "warnings": exc.warnings,
+        }, status_code=400)
+
+    return JSONResponse({
+        "status": "ok",
+        **result,
+    })
+
+
+@router.post("/api/minecraft/setup/create-server/execute")
+async def execute_minecraft_setup_server(
+    request: Request,
+    user_info: dict = Depends(require_minecraft_owner_or_manager_admin),
+):
+    """Execute the guarded setup create flow without starting server processes."""
+    if request.headers.get("x-cora-setup-intent") != "create-server":
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_create_intent_required",
+            "error": "Setup create execution requires an explicit intent header.",
+        }, status_code=400)
+
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type != "application/json":
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_create_json_required",
+            "error": "Setup create execution requires an application/json request body.",
+        }, status_code=415)
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({
+            "status": "error",
+            "success": False,
+            "error_code": "setup_create_invalid",
+            "error": "Request body must be valid JSON.",
+        }, status_code=400)
+
+    try:
+        result = await minecraft_setup_executor.execute_create_server(
+            payload,
+            actor=user_info.get("email", "unknown"),
+        )
+    except minecraft_setup_executor.SetupExecutionError as exc:
+        admin_audit_logger.info(
+            "setup_create_execute_failed | admin=%s | error_code=%s",
+            user_info.get("email", "unknown"),
+            exc.error_code,
+        )
+        return JSONResponse(exc.to_response(), status_code=exc.status_code)
+
+    profile = result.get("result", {}).get("profile", {})
+    admin_audit_logger.info(
+        "setup_create_execute_completed | admin=%s | profile=%s",
+        user_info.get("email", "unknown"),
+        profile.get("id", "unknown"),
+    )
+    return JSONResponse(result)
 
 
 @router.get("/api/minecraft/paper-targets")

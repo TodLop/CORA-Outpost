@@ -9,12 +9,10 @@ Handles version checking, downloading, and updating for:
 
 import json
 import hashlib
-import platform
 import shutil
 import logging
 import re
 import secrets
-import subprocess
 import time
 import uuid
 import zipfile
@@ -29,6 +27,7 @@ import yaml
 
 from app.core import config
 from app.services import minecraft_settings
+from app.services.native_folder_picker import choose_directory_with_native_dialog
 
 # Legacy aliases for imports that expect these names. Runtime code below calls
 # helper functions so changing the server directory in Settings takes effect.
@@ -1331,85 +1330,8 @@ def set_voxelshop_browser_download_directory(raw_path: str, *, actor: str = "") 
     return get_voxelshop_browser_download_config()
 
 
-def _native_folder_picker_applescript_string(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def _choose_directory_with_native_dialog(prompt: str) -> str:
-    system = platform.system()
-    if system == "Darwin":
-        script = (
-            "POSIX path of (choose folder with prompt "
-            f"{_native_folder_picker_applescript_string(prompt)})"
-        )
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True,
-            text=True,
-            timeout=180,
-            check=False,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        if result.returncode == 1 and "-128" in (result.stderr or ""):
-            raise ValueError("Folder selection was cancelled.")
-        raise RuntimeError((result.stderr or "macOS folder picker failed.").strip())
-
-    if system == "Windows":
-        escaped_prompt = prompt.replace("'", "''")
-        script = f"""
-Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = '{escaped_prompt}'
-$dialog.ShowNewFolderButton = $false
-$result = $dialog.ShowDialog()
-if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
-    Write-Output $dialog.SelectedPath
-}} else {{
-    Write-Output '__CANCELLED__'
-}}
-"""
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-STA", "-Command", script],
-            capture_output=True,
-            text=True,
-            timeout=180,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError((result.stderr or "Windows folder picker failed.").strip())
-        selected = result.stdout.strip()
-        if not selected or selected == "__CANCELLED__":
-            raise ValueError("Folder selection was cancelled.")
-        return selected
-
-    for command in (
-        ["zenity", "--file-selection", "--directory", "--title", prompt],
-        ["kdialog", "--getexistingdirectory", str(Path.home())],
-    ):
-        try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=180,
-                check=False,
-            )
-        except FileNotFoundError:
-            continue
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-        if result.returncode in {1, 2}:
-            raise ValueError("Folder selection was cancelled.")
-        raise RuntimeError((result.stderr or "Linux folder picker failed.").strip())
-
-    raise RuntimeError(
-        "Native folder picker is not available on this server. Enter the folder path manually."
-    )
-
-
 def choose_voxelshop_browser_download_directory(*, actor: str = "") -> dict[str, Any]:
-    selected = _choose_directory_with_native_dialog(
+    selected = choose_directory_with_native_dialog(
         "Choose the folder where your browser saves Voxel.shop plugin JARs"
     )
     return set_voxelshop_browser_download_directory(selected, actor=actor)

@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import TEMPLATES_DIR, APP_VERSION
-from app.core.minecraft_access import require_minecraft_admin
+from app.core.minecraft_access import is_minecraft_owner_or_manager_admin_user, require_minecraft_admin
 from app.services import minecraft_updater
 from app.services import minecraft_server
 from app.services import minecraft_settings
@@ -119,6 +119,31 @@ async def admin_update_preferences(request: Request, user_info: dict = Depends(r
             {"status": "error", "error": "failed to persist preferences"},
             status_code=500,
         )
+
+
+@router.get("/setup", response_class=HTMLResponse)
+async def minecraft_setup_workspace(request: Request, user_info: dict = Depends(require_minecraft_admin)):
+    """Render the setup workspace without reading live server state."""
+    can_execute_setup_create = is_minecraft_owner_or_manager_admin_user(user_info)
+    return templates.TemplateResponse(
+        request,
+        "admin/setup.html",
+        {
+            "user_info": user_info,
+            "is_admin": True,
+            "can_execute_setup_create": can_execute_setup_create,
+            "setup_create_execute_endpoint": (
+                "/minecraft/admin/api/minecraft/setup/create-server/execute"
+                if can_execute_setup_create
+                else None
+            ),
+            "setup_choose_folder_endpoint": (
+                "/minecraft/admin/api/minecraft/setup/choose-folder"
+                if can_execute_setup_create
+                else None
+            ),
+        },
+    )
 
 
 @router.get("", response_class=HTMLResponse)

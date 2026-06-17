@@ -11,6 +11,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_PUBLIC_REMOTE_NAME = "origin"
+EXPECTED_PUBLIC_REMOTE_URLS = {
+    "https://github.com/TodLop/CORA-Outpost.git",
+    "git@github.com:TodLop/CORA-Outpost.git",
+}
 
 BLOCKED_PATH_PARTS = {
     ".git",
@@ -149,6 +154,38 @@ def should_enforce_local_only_remote_policy() -> bool:
     return os.getenv("GITHUB_ACTIONS", "").strip().lower() != "true"
 
 
+def parse_git_remotes(output: str) -> list[tuple[str, str, str]]:
+    remotes: list[tuple[str, str, str]] = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            remotes.append(("", line, ""))
+            continue
+        name, url, action = parts[0], parts[1], parts[2].strip("()")
+        remotes.append((name, url, action))
+    return remotes
+
+
+def validate_remote_policy(remote_output: str) -> list[str]:
+    """Allow only the intentional public GitHub remote outside CI."""
+    if not should_enforce_local_only_remote_policy():
+        return []
+
+    errors: list[str] = []
+    for name, url, action in parse_git_remotes(remote_output):
+        if name != EXPECTED_PUBLIC_REMOTE_NAME:
+            errors.append(f"unexpected git remote configured: {name or url}")
+            continue
+        if url not in EXPECTED_PUBLIC_REMOTE_URLS:
+            errors.append(f"unexpected git remote URL for {name}: {url}")
+        if action not in {"fetch", "push"}:
+            errors.append(f"unexpected git remote action for {name}: {action or 'unknown'}")
+    return errors
+
+
 def main() -> int:
     errors: list[str] = []
     files = iter_files()
@@ -206,8 +243,7 @@ def main() -> int:
         stderr=subprocess.PIPE,
         check=False,
     )
-    if should_enforce_local_only_remote_policy() and remote_output.stdout.strip():
-        errors.append("git remotes are configured; public extraction must start local-only")
+    errors.extend(validate_remote_policy(remote_output.stdout))
 
     if errors:
         print("Public extract check failed:")
