@@ -1300,11 +1300,15 @@ def test_setup_executor_refuses_to_cleanup_unlisted_staging_files(monkeypatch, t
     assert (files_dir / "unlisted.tmp").read_text(encoding="utf-8") == "keep me\n"
 
 
+def _app_route_paths() -> set[str]:
+    return {route.path for route in create_app().routes if hasattr(route, "path")}
+
+
 def test_minecraft_admin_setup_routes_follow_module_enabled_state(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "test-secret")
 
     monkeypatch.setenv("ENABLED_MODULES", "minecraft_admin")
-    enabled_paths = {route.path for route in create_app().routes}
+    enabled_paths = _app_route_paths()
     assert "/minecraft/admin/setup" in enabled_paths
     assert "/minecraft/admin/api/minecraft/setup/defaults" in enabled_paths
     assert "/minecraft/admin/api/minecraft/setup/choose-folder" in enabled_paths
@@ -1313,7 +1317,7 @@ def test_minecraft_admin_setup_routes_follow_module_enabled_state(monkeypatch):
     assert "/minecraft/admin/api/minecraft/setup/create-server/execute" in enabled_paths
 
     monkeypatch.setenv("ENABLED_MODULES", "minecraft_runtime")
-    disabled_paths = {route.path for route in create_app().routes}
+    disabled_paths = _app_route_paths()
     assert "/minecraft/admin/setup" not in disabled_paths
     assert "/minecraft/admin/api/minecraft/setup/defaults" not in disabled_paths
     assert "/minecraft/admin/api/minecraft/setup/choose-folder" not in disabled_paths
