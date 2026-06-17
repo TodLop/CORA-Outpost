@@ -19,11 +19,11 @@ credentials, logs, backups, or incident artifacts.
 
 ## Version
 
-Current public preview: [`v0.1.0-public-preview`](https://github.com/TodLop/CORA-Outpost/releases/tag/v0.1.0-public-preview).
+Current public preview: [`v0.2.0`](https://github.com/TodLop/CORA-Outpost/releases/tag/v0.2.0).
 
-This version marks the first public documentation preview of CORA-Outpost. It is
-ready for repository review, screenshots, and architecture inspection, but it is
-not yet a bundled fake-data demo.
+This version adds the guarded Minecraft server setup workspace to the public
+extraction. It is ready for repository review, screenshots, architecture
+inspection, and setup-flow review, but it is not yet a bundled fake-data demo.
 
 ## Public Preview
 
@@ -54,7 +54,9 @@ repository.
 
 Use the local setup below to verify the application factory and run the admin
 surface with placeholder configuration. For a guided preview of what is and is
-not safe to show publicly, see [docs/DEMO.md](docs/DEMO.md).
+not safe to show publicly, see [docs/DEMO.md](docs/DEMO.md). For the guarded
+Minecraft server setup workflow, see
+[docs/MINECRAFT_SETUP_WORKSPACE.md](docs/MINECRAFT_SETUP_WORKSPACE.md).
 
 ```bash
 python3 -m venv .venv
@@ -94,6 +96,8 @@ flowchart LR
 ## What This Project Does
 
 - Provides an admin dashboard for Minecraft Paper server operations.
+- Provides a guarded setup workspace for drafting and creating a new inactive
+  Paper server profile from a missing or empty local folder.
 - Separates admin-only and staff-allowed workflows with RBAC gates.
 - Wraps server lifecycle actions such as status, start, stop, restart, and recovery.
 - Provides moderation, whitelist, investigation, warnings, and watchlist tools.
@@ -108,7 +112,7 @@ generic game-hosting control panel.
 
 | Area | Generic hosting panels | CORA-Outpost |
 | --- | --- | --- |
-| Server creation and container hosting | Core focus | Not the main focus |
+| Server creation and container hosting | Core focus | Supports guarded local Paper setup, not generic hosting or containers |
 | File manager and generic console access | Often broad | Safety-focused and intentionally limited |
 | Staff workflow | Varies by panel | Core focus |
 | Moderation workflow | Often external/plugin-specific | Core focus |
@@ -146,11 +150,14 @@ flowchart TD
     AdminModule --> BackendDocs["Backend docs routes"]
 
     AdminRoutes --> Auth["Auth + RBAC dependencies"]
+    AdminRoutes --> SetupWorkspace["Setup workspace<br/>preview, preflight, guarded create"]
     StaffRoutes --> Auth
     PluginDocs --> Auth
     BackendDocs --> Auth
 
     Auth --> Services["Service layer"]
+    SetupWorkspace --> SetupServices["Setup services<br/>side-effect-free preview + execute contract"]
+    SetupServices --> LocalState
     Services --> Minecraft["Minecraft server process, logs, plugins, configs"]
     Services --> LocalState["Local operator state"]
 
@@ -160,6 +167,9 @@ flowchart TD
 The application starts in `app/__init__.py`, installs middleware, mounts static
 assets, registers auth/status routes, and then asks the module registry to mount
 only the enabled modules.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the public extraction
+architecture and trust boundaries.
 
 ## Modular Design
 
@@ -184,7 +194,7 @@ classDiagram
 
     class minecraft_admin {
         enabled_by_default: true
-        routes: admin, staff, plugins, backend docs
+        routes: admin, setup, staff, plugins, backend docs
         access: admin/staff/RBAC
     }
 
@@ -202,7 +212,7 @@ classDiagram
 
 | Module | Default | Purpose |
 | --- | --- | --- |
-| `minecraft_admin` | Enabled | Admin dashboard, staff panel, plugin docs, backend runbook docs |
+| `minecraft_admin` | Enabled | Admin dashboard, setup workspace, staff panel, plugin docs, backend runbook docs |
 | `minecraft_runtime` | Disabled | Optional startup/shutdown hooks for schedulers, metrics, backups, updates, and log tailing |
 
 `ENABLED_MODULES` defaults to `minecraft_admin`. Broad module enablement with
@@ -214,6 +224,7 @@ mount excluded surfaces.
 ### Admin Operations
 
 - Server status and health checks
+- Guided setup workspace for new inactive Paper server profiles
 - Start, stop, restart, recover, and operation profile handling
 - Log viewing with path traversal guards
 - Scheduler, reboot, backup, and maintenance controls
@@ -258,6 +269,11 @@ Security-oriented defaults:
 - Arbitrary RCON command execution is disabled.
 - RCON password generation is disabled.
 - Browser terminal/PTTY access is not included.
+- Setup preview and preflight endpoints do not write files or read live server
+  process state.
+- Setup execution requires owner/current manager-admin access, JSON content, an
+  explicit `X-CORA-Setup-Intent: create-server` header, and creates inactive
+  profiles with RCON disabled.
 - Public, economy, market, record, Wrapped, portfolio, finance, and proxy modules
   are not present in this extraction.
 
@@ -273,6 +289,8 @@ Excluded from the public extraction:
 - Local machine paths and live identity defaults
 - Build outputs, generated caches, IDE metadata, and plugin build artifacts
 - Private CORA-live modules outside the Minecraft admin scope
+- Generated setup output such as Paper jars, `server.properties`, `eula.txt`,
+  setup claims, and staging ledgers
 
 The hygiene checker scans tracked and untracked public candidates for excluded
 paths, filenames, module names, route names, and sensitive text patterns.
@@ -299,6 +317,26 @@ sequenceDiagram
     F-->>U: HTML or JSON
 ```
 
+### Setup Create Flow
+
+```mermaid
+sequenceDiagram
+    participant U as Owner or manager-admin
+    participant W as Setup workspace
+    participant P as Preview/preflight API
+    participant E as Execute API
+    participant FS as Target folder
+    participant S as Profile metadata
+
+    U->>W: Draft folder, Paper target, memory, properties
+    W->>P: Preview or preflight JSON
+    P-->>W: Plan, warnings, non-actions
+    W->>E: Execute JSON + X-CORA-Setup-Intent
+    E->>FS: Claim, stage, publish setup artifacts
+    E->>S: Create inactive profile with RCON disabled
+    E-->>W: Result, cleanup state, profile id
+```
+
 ## Repository Layout
 
 ```text
@@ -306,7 +344,7 @@ app/
   core/                 Auth, config, deployment identity, access helpers
   modules/              Module contracts, registry, admin/runtime modules
   routers/              FastAPI route surfaces
-  services/             Minecraft operations, RBAC, updates, metrics, docs
+  services/             Minecraft operations, setup, RBAC, updates, metrics, docs
   static/               Local UI assets
   templates/            Admin, staff, plugin, docs, and status templates
 scripts/
@@ -344,7 +382,10 @@ python3 scripts/check_public_extract.py
 python3 -m pytest tests/test_public_extract_scope.py
 ```
 
-The checker fails on common private paths, live identity defaults, excluded modules/routes, terminal shell surfaces, generated caches, and broad module defaults.
+The checker fails on common private paths, live identity defaults, excluded
+modules/routes, terminal shell surfaces, generated caches, broad module
+defaults, and unexpected git remotes. The intentional public remote is `origin`
+pointing at the HTTPS or SSH URL for `TodLop/CORA-Outpost`.
 
 For a fuller confidence check, run the complete test suite:
 
@@ -359,6 +400,8 @@ SECRET_KEY=replace-with-a-long-random-secret ENABLED_MODULES=minecraft_admin pyt
 - `*` and `all` module enablement are ignored.
 - Arbitrary RCON command execution and RCON password generation are disabled in this public extraction.
 - Browser terminal/PTTY access is excluded.
+- Setup creation never starts or activates the created server profile.
+- Existing folder profile registration is not part of the setup workspace.
 
 ## License
 
@@ -371,9 +414,9 @@ dependencies and bundled frontend assets.
 
 ## Publication Checklist
 
-- Run `python scripts/check_public_extract.py`.
-- Run `python -m pytest tests/test_public_extract_scope.py`.
+- Run `python3 scripts/check_public_extract.py`.
+- Run `python3 -m pytest tests/test_public_extract_scope.py`.
 - Confirm `git status --short --ignored` is clean.
-- Confirm `git remote -v` is empty before intentionally adding a new GitHub remote.
+- Confirm `git remote -v` contains only the expected public `origin` remote.
 - Review `.env.example` and keep only placeholders or example values.
 - Review `LICENSE` and `THIRD_PARTY_NOTICES.md` before publishing a new mirror.

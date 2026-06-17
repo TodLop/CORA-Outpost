@@ -1,12 +1,12 @@
 # MODULE: minecraft_admin
 
 ## Purpose
-Minecraft operation surfaces: admin panel, staff panel, dashboard, plugin docs, and backend runbook docs.
+Public-safe Minecraft operation surfaces: setup workspace, admin panel, staff
+panel, plugin docs, and backend runbook docs.
 
 ## Routes
 - `/minecraft/admin*`
 - `/minecraft/staff*`
-- `/minecraft/admin*`
 - `/minecraft/plugins*`
 - `/minecraft/backend-docs*`
 
@@ -18,12 +18,15 @@ Minecraft operation surfaces: admin panel, staff panel, dashboard, plugin docs, 
 - Multiple templates under `app/templates/admin`, `app/templates/staff`, `app/templates/plugins`
 
 ## Auth & RBAC
-- Admin routes: admin only
+- Admin routes: Minecraft admin only
+- Setup execute route: owner/current manager-admin only, with JSON body and explicit `X-CORA-Setup-Intent: create-server`
 - Staff routes: staff/admin with RBAC permissions
 
 ## Data & State
-- Uses Minecraft server process state and local data files
-- Taskboard image store: `/dashboard-images`
+- Uses Minecraft server process state and local data files for operations views
+- Setup preview and preflight are side-effect free and do not read live server state
+- Setup execute writes only generated server artifacts into the approved missing or empty target folder and creates inactive profile metadata with RCON disabled
+- Runtime data, logs, backups, OAuth files, local server folders, setup claim files, staging ledgers, and generated Paper jars must not be committed
 
 ## Feature Flags
 - Controlled by `ENABLED_MODULES` via slug `minecraft_admin`
@@ -31,11 +34,13 @@ Minecraft operation surfaces: admin panel, staff panel, dashboard, plugin docs, 
 ## Operational Runbook
 - If module is offline, verify Minecraft process and RCON status
 - Check RBAC settings for staff access issues
+- For setup failures, inspect the API response cleanup field before touching target folders manually
 
 ## Test Matrix
 - Admin dashboard and staff panel permission boundaries
-- Taskboard CRUD, plugin docs pages, and backend docs access control
+- Setup workspace access, side-effect-free preview/preflight, guarded execute, inactive profile creation, and stale setup marker cleanup
+- Plugin docs pages and backend docs access control
 - Disabled module unmounts all listed prefixes
 
 ## Ownership
-- Product owner: Near Outpost server operations
+- Product owner: CORA-Outpost public Minecraft admin extraction

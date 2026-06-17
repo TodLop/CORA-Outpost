@@ -13,6 +13,9 @@ artifacts, local paths, or live domain details.
 
 - Admin operations dashboard: server lifecycle, guarded operations, plugin
   versions, backup automation, reboot automation, and update safety.
+- Server setup workspace: new Paper server draft, folder picker, preview,
+  creation preflight, and guarded create execution for owner/current
+  manager-admin users.
 - Moderation workflow: warnings, temp bans, whitelist controls, watchlist, and
   staff-scoped action forms.
 - Plugin documentation: plugin inventory and operator-facing runbooks for
@@ -27,6 +30,11 @@ artifacts, local paths, or live domain details.
   tools, and proxy modules.
 - Runtime data, live logs, backups, OAuth files, service account files, private
   keys, and incident artifacts.
+- Generated setup output such as Paper jars, `server.properties`, `eula.txt`,
+  setup claims, staging ledgers, or local server directories.
+- Existing folder registration from the setup workspace. The public setup flow
+  only creates into a missing or empty folder and leaves the created profile
+  inactive.
 - Arbitrary RCON command execution, RCON password generation, or browser
   terminal/PTTY access.
 
@@ -41,6 +49,8 @@ A future demo mode should use deterministic fake fixtures instead of live data:
   results.
 - Sample scheduler state for backups, reboots, maintenance windows, and update
   automation.
+- Sample setup preview/preflight responses that use temporary placeholder
+  folders and never include local machine paths.
 - Sample redacted logs and runbook content suitable for screenshots and issue
   reproduction.
 

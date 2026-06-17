@@ -38,8 +38,8 @@ module = ModuleContract(
         slug="minecraft_admin",
         name="Minecraft Admin",
         description=(
-            "Minecraft Paper server operations dashboard, staff panel, plugin docs, "
-            "and backend runbook docs."
+            "Minecraft Paper setup workspace, operations dashboard, staff panel, "
+            "plugin docs, and backend runbook docs."
         ),
         icon="gamepad-2",
         color="green",

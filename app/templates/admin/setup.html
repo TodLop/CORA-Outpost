@@ -1,0 +1,909 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Server Setup - Minecraft Admin{% endblock %}
+
+{% import "components/admin_shell/macros.html" as near %}
+
+{% block content %}
+<div class="min-h-screen bg-[#050505]" x-data="minecraftSetupWorkspace()" x-init="init()">
+    <header class="border-b border-emerald-500/20 bg-[#0a0a0a]/85 backdrop-blur-sm">
+        <div class="mx-auto flex max-w-[1280px] flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">Minecraft Admin</p>
+                <h1 class="mt-1 font-orbitron text-2xl font-bold text-white">Server Setup Workspace</h1>
+            </div>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a href="/minecraft/admin"
+                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-500/30 bg-slate-500/15 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-500/25">
+                    <i data-lucide="arrow-left" class="h-4 w-4"></i>
+                    Back to Operations
+                </a>
+                {{ near.settings_button('Preferences') }}
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-[1280px] px-4 py-5">
+        <section class="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
+            <div class="glass-panel rounded-lg p-5">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">Guided setup</p>
+                        <h2 class="mt-2 text-2xl font-bold text-white">Prepare a server profile draft before touching operations.</h2>
+                        <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                            Choose a folder, Paper build, memory budget, Aikar flags, and first-run properties. Creation stays locked until server-side preflight approves the current draft.
+                        </p>
+                    </div>
+                    <button type="button" @click="previewSetup(true)" :disabled="loadingPreview"
+                        class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
+                        <i data-lucide="file-search" class="h-4 w-4"></i>
+                        <span x-text="loadingPreview ? 'Previewing...' : 'Preview Setup'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-5">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="shield-alert" class="mt-0.5 h-5 w-5 text-amber-300"></i>
+                    <div>
+                        <h2 class="text-base font-bold text-white">Live service guardrail</h2>
+                        <p class="mt-2 text-sm leading-6 text-amber-100">
+                            This page does not start, stop, restart, update, back up, delete folders, run RCON,
+                            register existing folders, or change the active profile.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-5 grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+            <div class="space-y-4">
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center gap-2 text-emerald-200">
+                        <i data-lucide="folder-tree" class="h-4 w-4"></i>
+                        <h2 class="text-lg font-bold text-white">Profile Draft</h2>
+                    </div>
+                    <div class="mt-4 grid gap-3">
+                        <label class="grid gap-1 text-sm">
+                            <span class="font-semibold text-slate-200">Profile name</span>
+                            <input type="text" x-model.trim="draft.profile_name" @input="markDraftChanged(); schedulePreview()"
+                                class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400"
+                                maxlength="64">
+                        </label>
+                        <div class="grid gap-2 text-sm">
+                            <span class="font-semibold text-slate-200">Server folder</span>
+                            <div class="flex flex-col gap-2 rounded-lg border border-slate-700 bg-black/30 p-3">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    {% if can_execute_setup_create %}
+                                    <button type="button" @click="chooseSetupFolder()" :disabled="loadingFolderPicker"
+                                        class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-60">
+                                        <i data-lucide="folder-open" class="h-4 w-4"></i>
+                                        <span x-text="loadingFolderPicker ? 'Waiting for folder...' : 'Choose Folder'"></span>
+                                    </button>
+                                    {% endif %}
+                                    <p class="min-w-0 break-all font-mono text-xs text-slate-300"
+                                        x-text="draft.server_directory || 'No folder selected'"></p>
+                                </div>
+                                <details>
+                                    <summary class="cursor-pointer text-xs text-slate-500 transition hover:text-slate-300">Manual path fallback</summary>
+                                    <input type="text" x-model.trim="draft.server_directory" @input="markDraftChanged(); schedulePreview()"
+                                        class="mt-2 w-full rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400"
+                                        placeholder="/absolute/path/to/server">
+                                </details>
+                                <p class="text-xs text-amber-200" x-show="folderPickerError" x-text="folderPickerError"></p>
+                            </div>
+                        </div>
+                        <label class="flex items-start gap-3 rounded-lg border border-slate-700 bg-black/30 p-3 text-sm">
+                            <input type="checkbox" x-model="draft.eula_accepted" @change="markDraftChanged(); previewSetup()"
+                                class="mt-1 h-4 w-4 rounded border-slate-600 bg-black text-emerald-500 focus:ring-emerald-400">
+                            <span>
+                                <span class="block font-semibold text-slate-200">Minecraft EULA accepted for future creation</span>
+                                <span class="mt-1 block text-xs leading-5 text-slate-400">
+                                    Required before Create Server can write eula.txt into a new or empty target folder.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-sky-200">
+                            <i data-lucide="package-check" class="h-4 w-4"></i>
+                            <h2 class="text-lg font-bold text-white">Paper Target</h2>
+                        </div>
+                        <button type="button" @click="loadPaperTargets()" :disabled="loadingPaper"
+                            class="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/15 px-3 py-2 text-xs font-bold text-sky-100 transition hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+                            <span x-text="loadingPaper ? 'Loading' : 'Refresh'"></span>
+                        </button>
+                    </div>
+                    <div class="mt-4 grid gap-3">
+                        <label class="grid gap-1 text-sm">
+                            <span class="font-semibold text-slate-200">Stable build</span>
+                            <select x-model="selectedPaperIndex" @change="applyPaperTarget(selectedPaperIndex)"
+                                class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-sky-400">
+                                <option value="">Manual filename</option>
+                                <template x-for="(target, index) in paperTargets" :key="target.filename || index">
+                                    <option :value="String(index)"
+                                        x-text="`${target.minecraft_version || 'Paper'} / ${target.paper_version || target.build || 'latest'} / ${target.filename || 'paper.jar'}`"></option>
+                                </template>
+                            </select>
+                        </label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Minecraft version</span>
+                                <input type="text" x-model.trim="draft.minecraft_version" @input="markDraftChanged(); schedulePreview()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-sky-400">
+                            </label>
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Paper filename</span>
+                                <input type="text" x-model.trim="draft.paper_filename" @input="markDraftChanged(); schedulePreview()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-sky-400">
+                            </label>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs text-amber-200" x-show="paperError" x-text="paperError"></p>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center gap-2 text-violet-200">
+                        <i data-lucide="memory-stick" class="h-4 w-4"></i>
+                        <h2 class="text-lg font-bold text-white">Memory</h2>
+                    </div>
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <label class="grid gap-1 text-sm">
+                            <span class="font-semibold text-slate-200">Expected players</span>
+                            <input type="number" min="1" max="100" x-model.number="draft.expected_players" @input="markDraftChanged(); schedulePreview()"
+                                class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-violet-400">
+                        </label>
+                        <label class="grid gap-1 text-sm">
+                            <span class="font-semibold text-slate-200">Max memory MB</span>
+                            <input type="number" min="1024" step="512" x-model.number="draft.memory_max_mb" @input="markDraftChanged(); schedulePreview()"
+                                class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-violet-400">
+                        </label>
+                    </div>
+                    <label class="mt-4 flex items-center justify-between gap-4 rounded-lg border border-slate-700 bg-black/30 px-3 py-2 text-sm">
+                        <span class="font-semibold text-slate-200">Aikar flags</span>
+                        <input type="checkbox" x-model="draft.use_aikar_flags" @change="markDraftChanged(); previewSetup()"
+                            class="h-4 w-4 rounded border-slate-500 bg-black text-emerald-500 focus:ring-emerald-400">
+                    </label>
+                    <dl class="mt-4 grid gap-2 text-xs text-slate-300 sm:grid-cols-3">
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-slate-500">Host RAM</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="formatMb(hostMemory.total_mb)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-slate-500">Recommended</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="formatMb(preview?.memory?.recommended_max_mb || hostMemory.recommended_max_mb)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-slate-500">Safe max</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="formatMb(hostMemory.safe_max_mb)"></dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center gap-2 text-rose-200">
+                        <i data-lucide="list-checks" class="h-4 w-4"></i>
+                        <h2 class="text-lg font-bold text-white">Server Properties</h2>
+                    </div>
+                    <div class="mt-4 grid gap-3">
+                        <label class="grid gap-1 text-sm">
+                            <span class="font-semibold text-slate-200">MOTD</span>
+                            <input type="text" maxlength="80" x-model.trim="draft.server_properties.motd" @input="markDraftChanged(); schedulePreview()"
+                                class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                        </label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Max players</span>
+                                <input type="number" min="1" max="200" x-model.number="draft.server_properties.max_players" @input="markDraftChanged(); schedulePreview()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                            </label>
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Server port</span>
+                                <input type="number" min="1" max="65535" x-model.number="draft.server_properties.server_port" @input="markDraftChanged(); schedulePreview()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                            </label>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Difficulty</span>
+                                <select x-model="draft.server_properties.difficulty" @change="markDraftChanged(); previewSetup()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                                    <template x-for="difficulty in options.difficulties" :key="difficulty">
+                                        <option :value="difficulty" x-text="difficulty"></option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Gamemode</span>
+                                <select x-model="draft.server_properties.gamemode" @change="markDraftChanged(); previewSetup()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                                    <template x-for="gamemode in options.gamemodes" :key="gamemode">
+                                        <option :value="gamemode" x-text="gamemode"></option>
+                                    </template>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">View distance</span>
+                                <input type="number" min="2" max="32" x-model.number="draft.server_properties.view_distance" @input="markDraftChanged(); schedulePreview()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                            </label>
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-semibold text-slate-200">Simulation distance</span>
+                                <input type="number" min="2" max="32" x-model.number="draft.server_properties.simulation_distance" @input="markDraftChanged(); schedulePreview()"
+                                    class="rounded-lg border border-slate-700 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-400">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                        <label class="flex items-center justify-between gap-4 rounded-lg border border-slate-700 bg-black/30 px-3 py-2 text-sm">
+                            <span class="font-semibold text-slate-200">Whitelist</span>
+                            <input type="checkbox" x-model="draft.server_properties.white_list" @change="markDraftChanged(); previewSetup()"
+                                class="h-4 w-4 rounded border-slate-500 bg-black text-emerald-500 focus:ring-emerald-400">
+                        </label>
+                        <label class="flex items-center justify-between gap-4 rounded-lg border border-slate-700 bg-black/30 px-3 py-2 text-sm">
+                            <span class="font-semibold text-slate-200">Online mode</span>
+                            <input type="checkbox" x-model="draft.server_properties.online_mode" @change="markDraftChanged(); previewSetup()"
+                                class="h-4 w-4 rounded border-slate-500 bg-black text-emerald-500 focus:ring-emerald-400">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4" x-show="errorMessage">
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="circle-alert" class="mt-0.5 h-5 w-5 text-red-300"></i>
+                        <div>
+                            <h2 class="text-sm font-bold text-red-100" x-text="errorMessage"></h2>
+                            <template x-if="Object.keys(fieldErrors).length">
+                                <ul class="mt-2 space-y-1 text-xs leading-5 text-red-100">
+                                    <template x-for="[field, message] in Object.entries(fieldErrors)" :key="field">
+                                        <li><span class="font-semibold" x-text="field"></span>: <span x-text="message"></span></li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4" x-show="createdServerResult">
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="badge-check" class="mt-0.5 h-5 w-5 text-emerald-300"></i>
+                        <div class="min-w-0">
+                            <h2 class="text-sm font-bold text-emerald-100">Server files created</h2>
+                            <p class="mt-1 text-xs leading-5 text-emerald-100">
+                                <span x-text="createdServerResult?.profile?.name || 'Server profile'"></span>
+                                was saved as
+                                <span class="font-mono" x-text="createdServerResult?.profile?.id || '-'"></span>.
+                                The profile remains inactive and the server was not started.
+                            </p>
+                            <p class="mt-2 text-xs leading-5 text-amber-100" x-show="createdServerDraftChanged">
+                                This result came from the submitted draft before the latest edits.
+                            </p>
+                            <p class="mt-2 break-all font-mono text-xs text-emerald-100"
+                                x-text="createdServerResult?.profile?.server_directory || ''"></p>
+                            <template x-if="createdServerResult?.created_artifacts?.length">
+                                <ul class="mt-2 space-y-1 text-xs leading-5 text-emerald-100">
+                                    <template x-for="artifact in createdServerResult.created_artifacts" :key="artifact.path || artifact.relative_path || artifact.label">
+                                        <li class="break-all">
+                                            <span x-text="artifact.label || artifact.relative_path || artifact.path"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-emerald-200">
+                            <i data-lucide="clipboard-check" class="h-4 w-4"></i>
+                            <h2 class="text-lg font-bold text-white">Draft Summary</h2>
+                        </div>
+                        <span class="rounded-full border px-3 py-1 text-xs font-bold"
+                            :class="preview ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-100' : 'border-slate-500/30 bg-slate-500/15 text-slate-300'"
+                            x-text="preview ? 'READY' : 'PENDING'"></span>
+                    </div>
+                    <dl class="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Profile</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="preview?.profile?.name || draft.profile_name || '-'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Suggested ID</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="preview?.profile?.suggested_id || '-'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-white/5 p-3 sm:col-span-2">
+                            <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Folder</dt>
+                            <dd class="mt-1 break-all font-semibold text-white" x-text="preview?.folder?.path || draft.server_directory || '-'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Paper</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="preview?.paper?.filename || draft.paper_filename || '-'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-white/5 p-3">
+                            <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Memory</dt>
+                            <dd class="mt-1 font-semibold text-white" x-text="formatMb(preview?.memory?.memory_max_mb || draft.memory_max_mb)"></dd>
+                        </div>
+                    </dl>
+                    <template x-if="preview?.warnings?.length">
+                        <ul class="mt-4 space-y-1 text-xs leading-5 text-amber-200">
+                            <template x-for="warning in preview.warnings" :key="warning">
+                                <li class="flex gap-2"><span>-</span><span x-text="warning"></span></li>
+                            </template>
+                        </ul>
+                    </template>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-cyan-200">
+                            <i data-lucide="clipboard-list" class="h-4 w-4"></i>
+                            <h2 class="text-lg font-bold text-white">Install Plan</h2>
+                        </div>
+                        <span class="rounded-full border px-3 py-1 text-xs font-bold"
+                            :class="installPlanReadyClass()"
+                            x-text="installPlanReadyText()"></span>
+                    </div>
+                    <p class="mt-3 text-xs leading-5 text-slate-400">
+                        Preview before execution: this area lists setup work before any file creation is allowed.
+                    </p>
+                    <div class="mt-4 rounded-lg border border-slate-700 bg-black/30 p-3">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Creation Preflight</h3>
+                                <p class="mt-2 text-xs leading-5 text-slate-400">
+                                    Server-side readiness check only. It does not write files, create profiles, activate profiles, or start server work.
+                                </p>
+                            </div>
+                            <div class="flex flex-col gap-2 sm:items-end">
+                                <span class="rounded-full border px-3 py-1 text-xs font-bold"
+                                    :class="creationPreflightStatusClass()"
+                                    x-text="creationPreflightStatusText()"></span>
+                                <button type="button" @click="checkCreationPreflight()"
+                                    :disabled="checkingCreationPreflight || loadingDefaults || !String(draft.server_directory || '').trim()"
+                                    class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/15 px-4 py-2 text-sm font-bold text-cyan-100 transition hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60">
+                                    <i data-lucide="shield-check" class="h-4 w-4"></i>
+                                    <span x-text="checkingCreationPreflight ? 'Checking...' : 'Check Creation Readiness'"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <template x-if="creationPreflight">
+                            <dl class="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
+                                <div>
+                                    <dt class="uppercase tracking-[0.16em] text-slate-500">Mode</dt>
+                                    <dd class="mt-1 font-semibold text-white" x-text="creationPreflight.mode || '-'"></dd>
+                                </div>
+                                <div>
+                                    <dt class="uppercase tracking-[0.16em] text-slate-500">Ready</dt>
+                                    <dd class="mt-1 font-semibold" :class="creationPreflight.ready_for_creation ? 'text-emerald-100' : 'text-amber-100'"
+                                        x-text="creationPreflight.ready_for_creation ? 'Ready for future creation' : 'Not ready for future creation'"></dd>
+                                </div>
+                                <div>
+                                    <dt class="uppercase tracking-[0.16em] text-slate-500">Execution policy</dt>
+                                    <dd class="mt-1 font-semibold" :class="creationPreflight.ready_for_execution ? 'text-emerald-100' : 'text-amber-100'"
+                                        x-text="creationPreflight.ready_for_execution ? 'Policy ready' : 'Policy gate pending'"></dd>
+                                </div>
+                                <div>
+                                    <dt class="uppercase tracking-[0.16em] text-slate-500">EULA</dt>
+                                    <dd class="mt-1 font-semibold" :class="creationPreflight.creation_policy?.eula_accepted ? 'text-emerald-100' : 'text-amber-100'"
+                                        x-text="creationPreflight.creation_policy?.eula_accepted ? 'Accepted' : 'Required'"></dd>
+                                </div>
+                            </dl>
+                        </template>
+                        <p class="mt-3 text-xs leading-5 text-amber-200" x-show="creationPreflightError" x-text="creationPreflightError"></p>
+                        <template x-if="creationPreflightError && Object.keys(fieldErrors).length">
+                            <ul class="mt-2 space-y-1 text-xs leading-5 text-amber-200">
+                                <template x-for="[field, message] in Object.entries(fieldErrors)" :key="field">
+                                    <li><span class="font-semibold" x-text="field"></span>: <span x-text="message"></span></li>
+                                </template>
+                            </ul>
+                        </template>
+                        <template x-if="creationPreflight?.warnings?.length">
+                            <ul class="mt-3 space-y-1 text-xs leading-5 text-amber-200">
+                                <template x-for="warning in creationPreflight.warnings" :key="warning">
+                                    <li class="flex gap-2"><span>-</span><span x-text="warning"></span></li>
+                                </template>
+                            </ul>
+                        </template>
+                        <div class="mt-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">Create Server</h3>
+                                    <p class="mt-2 text-xs leading-5 text-emerald-100" x-text="createServerGateText()"></p>
+                                    <p class="mt-2 text-xs leading-5 text-red-100" x-show="createServerError" x-text="createServerError"></p>
+                                </div>
+                                {% if can_execute_setup_create %}
+                                <button type="button" @click="executeCreateServer()" :disabled="!canExecuteCreateServer()"
+                                    class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
+                                    <i data-lucide="hard-drive-download" class="h-4 w-4"></i>
+                                    <span x-text="creatingServer ? 'Creating...' : 'Create Server'"></span>
+                                </button>
+                                {% else %}
+                                <p class="text-xs font-semibold leading-5 text-amber-100">
+                                    Owner or manager-admin authorization is required to execute server creation.
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <template x-if="preview?.install_plan">
+                        <div class="mt-4 space-y-4">
+                            <dl class="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                                <div class="rounded-lg bg-white/5 p-3">
+                                    <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Target folder</dt>
+                                    <dd class="mt-1 break-all font-semibold text-white" x-text="preview.install_plan.target.server_directory || '-'"></dd>
+                                </div>
+                                <div class="rounded-lg bg-white/5 p-3">
+                                    <dt class="text-xs uppercase tracking-[0.16em] text-slate-500">Paper target</dt>
+                                    <dd class="mt-1 font-semibold text-white" x-text="preview.install_plan.paper.label || '-'"></dd>
+                                </div>
+                            </dl>
+                            <div>
+                                <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Planned artifacts</h3>
+                                <ul class="mt-2 space-y-2 text-xs leading-5 text-slate-300">
+                                    <template x-for="artifact in preview.install_plan.planned_artifacts" :key="artifact.path">
+                                        <li class="rounded-lg bg-white/5 p-3">
+                                            <div class="font-semibold text-white" x-text="artifact.label"></div>
+                                            <div class="mt-1 break-all font-mono text-slate-300" x-text="artifact.path"></div>
+                                            <div class="mt-1 text-slate-500" x-text="artifact.source"></div>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                            <div class="rounded-lg border border-slate-700 bg-black/30 p-3">
+                                <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Non-actions</h3>
+                                <ul class="mt-2 space-y-1 text-xs leading-5 text-slate-300">
+                                    <template x-for="item in preview.install_plan.non_actions" :key="item">
+                                        <li class="flex gap-2"><span>-</span><span x-text="item"></span></li>
+                                    </template>
+                                </ul>
+                            </div>
+                            <template x-if="preview.install_plan.warnings?.length">
+                                <ul class="space-y-1 text-xs leading-5 text-amber-200">
+                                    <template x-for="warning in preview.install_plan.warnings" :key="warning">
+                                        <li class="flex gap-2"><span>-</span><span x-text="warning"></span></li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template x-if="preview.creation_policy">
+                                <div class="rounded-lg border border-slate-700 bg-black/30 p-3">
+                                    <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Future Execution Policy</h3>
+                                    <dl class="mt-3 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
+                                        <div>
+                                            <dt class="uppercase tracking-[0.16em] text-slate-500">Write scope</dt>
+                                            <dd class="mt-1 font-semibold text-white" x-text="preview.creation_policy.write_scope || '-'"></dd>
+                                        </div>
+                                        <div>
+                                            <dt class="uppercase tracking-[0.16em] text-slate-500">Profile activation</dt>
+                                            <dd class="mt-1 font-semibold text-emerald-100"
+                                                x-text="preview.creation_policy.profile_metadata?.set_active ? 'Automatic' : 'Disabled'"></dd>
+                                        </div>
+                                        <div>
+                                            <dt class="uppercase tracking-[0.16em] text-slate-500">Download cleanup</dt>
+                                            <dd class="mt-1 font-semibold text-white" x-text="preview.creation_policy.failure_cleanup?.paper_download || '-'"></dd>
+                                        </div>
+                                        <div>
+                                            <dt class="uppercase tracking-[0.16em] text-slate-500">Server actions</dt>
+                                            <dd class="mt-1 font-semibold text-emerald-100">Disabled</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center gap-2 text-violet-200">
+                        <i data-lucide="terminal" class="h-4 w-4"></i>
+                        <h2 class="text-lg font-bold text-white">start.sh Preview</h2>
+                    </div>
+                    <pre class="mt-4 min-h-[180px] overflow-x-auto rounded-lg border border-slate-800 bg-black/60 p-4 text-xs leading-6 text-slate-100" x-text="preview?.start_script || ''"></pre>
+                </div>
+
+                <div class="glass-panel rounded-lg p-5">
+                    <div class="flex items-center gap-2 text-rose-200">
+                        <i data-lucide="file-sliders" class="h-4 w-4"></i>
+                        <h2 class="text-lg font-bold text-white">server.properties Preview</h2>
+                    </div>
+                    <pre class="mt-4 min-h-[260px] overflow-x-auto rounded-lg border border-slate-800 bg-black/60 p-4 text-xs leading-6 text-slate-100" x-text="preview?.server_properties || ''"></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+function minecraftSetupWorkspace() {
+    return {
+        defaultsEndpoint: '/minecraft/admin/api/minecraft/setup/defaults',
+        previewEndpoint: '/minecraft/admin/api/minecraft/setup/preview',
+        createPreflightEndpoint: '/minecraft/admin/api/minecraft/setup/create-server',
+        createExecuteEndpoint: {{ setup_create_execute_endpoint|tojson }},
+        folderPickerEndpoint: {{ setup_choose_folder_endpoint|tojson }},
+        paperTargetsEndpoint: '/minecraft/admin/api/minecraft/paper-targets',
+        canExecuteSetupCreate: {{ can_execute_setup_create|tojson }},
+        loadingDefaults: false,
+        loadingPreview: false,
+        loadingFolderPicker: false,
+        loadingPaper: false,
+        checkingCreationPreflight: false,
+        creatingServer: false,
+        previewDebounceTimer: null,
+        errorMessage: '',
+        creationPreflightError: '',
+        createServerError: '',
+        folderPickerError: '',
+        paperError: '',
+        fieldErrors: {},
+        createdServerResult: null,
+        createdServerDraftChanged: false,
+        creationPreflight: null,
+        creationPreflightDraftFingerprint: '',
+        previewRequestId: 0,
+        creationPreflightRequestId: 0,
+        selectedPaperIndex: '',
+        paperTargets: [],
+        hostMemory: {},
+        options: { difficulties: ['peaceful', 'easy', 'normal', 'hard'], gamemodes: ['survival', 'creative', 'adventure', 'spectator'] },
+        preview: null,
+        draft: {
+            profile_name: 'CORA-Outpost Server',
+            server_directory: '',
+            expected_players: 10,
+            memory_max_mb: 4096,
+            use_aikar_flags: true,
+            eula_accepted: false,
+            minecraft_version: '',
+            paper_version: '',
+            paper_filename: 'paper.jar',
+            server_properties: {
+                motd: 'CORA-Outpost',
+                max_players: 20,
+                white_list: true,
+                difficulty: 'normal',
+                gamemode: 'survival',
+                view_distance: 10,
+                simulation_distance: 8,
+                online_mode: true,
+                server_port: 25565,
+            },
+        },
+        async init() {
+            await this.loadDefaults();
+            this.loadPaperTargets();
+        },
+        async loadDefaults() {
+            this.loadingDefaults = true;
+            try {
+                const response = await fetch(this.defaultsEndpoint, { headers: { 'Accept': 'application/json' } });
+                const payload = await response.json();
+                if (!response.ok || payload.status !== 'ok') {
+                    throw new Error(payload.error || 'Failed to load setup defaults.');
+                }
+                this.hostMemory = payload.host_memory || {};
+                this.options = payload.options || this.options;
+                this.draft = this.mergeDraft(payload.defaults || {});
+                this.markDraftChanged();
+            } catch (error) {
+                this.errorMessage = error.message || 'Failed to load setup defaults.';
+            } finally {
+                this.loadingDefaults = false;
+            }
+        },
+        mergeDraft(defaults) {
+            return {
+                ...this.draft,
+                ...defaults,
+                server_properties: {
+                    ...this.draft.server_properties,
+                    ...(defaults.server_properties || {}),
+                },
+            };
+        },
+        markDraftChanged() {
+            if (this.previewDebounceTimer) {
+                clearTimeout(this.previewDebounceTimer);
+                this.previewDebounceTimer = null;
+            }
+            this.loadingPreview = false;
+            this.checkingCreationPreflight = false;
+            this.creationPreflight = null;
+            this.creationPreflightError = '';
+            this.creationPreflightDraftFingerprint = '';
+            this.createServerError = '';
+            this.createdServerResult = null;
+            this.createdServerDraftChanged = false;
+            this.fieldErrors = {};
+            this.previewRequestId += 1;
+            this.creationPreflightRequestId += 1;
+        },
+        schedulePreview() {
+            if (this.previewDebounceTimer) clearTimeout(this.previewDebounceTimer);
+            this.previewDebounceTimer = setTimeout(() => {
+                this.previewDebounceTimer = null;
+                this.previewSetup();
+            }, 350);
+        },
+        draftFingerprint() {
+            return JSON.stringify({
+                profile_name: this.draft.profile_name || '',
+                server_directory: this.draft.server_directory || '',
+                expected_players: Number(this.draft.expected_players || 0),
+                memory_max_mb: Number(this.draft.memory_max_mb || 0),
+                use_aikar_flags: Boolean(this.draft.use_aikar_flags),
+                eula_accepted: Boolean(this.draft.eula_accepted),
+                minecraft_version: this.draft.minecraft_version || '',
+                paper_version: this.draft.paper_version || '',
+                paper_filename: this.draft.paper_filename || '',
+                server_properties: {
+                    motd: this.draft.server_properties?.motd || '',
+                    max_players: Number(this.draft.server_properties?.max_players || 0),
+                    white_list: Boolean(this.draft.server_properties?.white_list),
+                    difficulty: this.draft.server_properties?.difficulty || '',
+                    gamemode: this.draft.server_properties?.gamemode || '',
+                    view_distance: Number(this.draft.server_properties?.view_distance || 0),
+                    simulation_distance: Number(this.draft.server_properties?.simulation_distance || 0),
+                    online_mode: Boolean(this.draft.server_properties?.online_mode),
+                    server_port: Number(this.draft.server_properties?.server_port || 0),
+                },
+            });
+        },
+        async loadPaperTargets() {
+            this.loadingPaper = true;
+            this.paperError = '';
+            try {
+                const response = await fetch(this.paperTargetsEndpoint, { headers: { 'Accept': 'application/json' } });
+                const payload = await response.json();
+                if (!response.ok || payload.status !== 'ok') {
+                    throw new Error(payload.error || 'Paper target discovery is unavailable.');
+                }
+                this.paperTargets = Array.isArray(payload.targets) ? payload.targets : [];
+                if (this.paperTargets.length && !this.selectedPaperIndex) {
+                    this.selectedPaperIndex = '0';
+                    this.applyPaperTarget('0', { preview: false });
+                }
+            } catch (error) {
+                this.paperError = error.message || 'Paper target discovery is unavailable.';
+            } finally {
+                this.loadingPaper = false;
+            }
+        },
+        applyPaperTarget(index, options = {}) {
+            this.markDraftChanged();
+            if (index === '') {
+                if (options.preview !== false) this.previewSetup();
+                return;
+            }
+            const target = this.paperTargets[Number(index)];
+            if (!target) {
+                if (options.preview !== false) this.previewSetup();
+                return;
+            }
+            this.draft.minecraft_version = target.minecraft_version || '';
+            this.draft.paper_version = target.paper_version || '';
+            this.draft.paper_filename = target.filename || this.draft.paper_filename;
+            if (options.preview !== false) this.previewSetup();
+        },
+        async chooseSetupFolder() {
+            if (this.loadingFolderPicker) return;
+            if (!this.canExecuteSetupCreate || !this.folderPickerEndpoint) {
+                this.folderPickerError = 'Owner or manager-admin authorization is required for native folder selection.';
+                return;
+            }
+            this.loadingFolderPicker = true;
+            this.folderPickerError = '';
+            try {
+                const response = await fetch(this.folderPickerEndpoint, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                });
+                const payload = await response.json();
+                if (response.ok && payload.status === 'ok') {
+                    this.draft.server_directory = payload.path || '';
+                    this.markDraftChanged();
+                    await this.previewSetup(true);
+                    return;
+                }
+                if (payload.status === 'cancelled') {
+                    return;
+                }
+                this.folderPickerError = payload.error || 'Could not open folder picker.';
+            } catch (error) {
+                this.folderPickerError = error.message || 'Could not open folder picker.';
+            } finally {
+                this.loadingFolderPicker = false;
+            }
+        },
+        async previewSetup(force = false) {
+            if (!force && !String(this.draft.server_directory || '').trim()) {
+                this.preview = null;
+                this.errorMessage = '';
+                this.creationPreflightError = '';
+                this.fieldErrors = {};
+                this.creationPreflight = null;
+                this.creationPreflightDraftFingerprint = '';
+                this.createServerError = '';
+                this.createdServerResult = null;
+                return;
+            }
+            const requestId = ++this.previewRequestId;
+            const fingerprint = this.draftFingerprint();
+            this.loadingPreview = true;
+            this.errorMessage = '';
+            this.creationPreflightError = '';
+            this.fieldErrors = {};
+            this.creationPreflight = null;
+            this.creationPreflightDraftFingerprint = '';
+            try {
+                const response = await fetch(this.previewEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(this.draft),
+                });
+                const payload = await response.json();
+                if (requestId !== this.previewRequestId || fingerprint !== this.draftFingerprint()) return;
+                if (!response.ok || payload.status !== 'ok') {
+                    this.preview = null;
+                    this.fieldErrors = payload.errors || {};
+                    throw new Error(payload.error || 'Preview failed.');
+                }
+                this.preview = payload.preview;
+            } catch (error) {
+                if (requestId !== this.previewRequestId || fingerprint !== this.draftFingerprint()) return;
+                this.errorMessage = error.message || 'Preview failed.';
+            } finally {
+                if (requestId === this.previewRequestId) {
+                    this.loadingPreview = false;
+                }
+            }
+        },
+        async checkCreationPreflight() {
+            if (this.checkingCreationPreflight) return;
+            if (!String(this.draft.server_directory || '').trim()) {
+                this.creationPreflightError = 'Choose a server folder before checking creation readiness.';
+                return;
+            }
+            const requestId = ++this.creationPreflightRequestId;
+            const fingerprint = this.draftFingerprint();
+            this.checkingCreationPreflight = true;
+            this.errorMessage = '';
+            this.creationPreflightError = '';
+            this.fieldErrors = {};
+            this.creationPreflight = null;
+            this.creationPreflightDraftFingerprint = '';
+            this.createServerError = '';
+            this.createdServerResult = null;
+            try {
+                const response = await fetch(this.createPreflightEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(this.draft),
+                });
+                const payload = await response.json();
+                if (requestId !== this.creationPreflightRequestId || fingerprint !== this.draftFingerprint()) return;
+                if (payload.preview) this.preview = payload.preview;
+                if (payload.preflight) this.creationPreflight = payload.preflight;
+                if (!response.ok || payload.status !== 'ok') {
+                    this.fieldErrors = payload.errors || {};
+                    this.creationPreflightError = payload.error || 'Creation readiness check failed.';
+                    return;
+                }
+                this.creationPreflightDraftFingerprint = fingerprint;
+            } catch (error) {
+                if (requestId !== this.creationPreflightRequestId || fingerprint !== this.draftFingerprint()) return;
+                this.creationPreflightError = error.message || 'Creation readiness check failed.';
+            } finally {
+                if (requestId === this.creationPreflightRequestId) {
+                    this.checkingCreationPreflight = false;
+                }
+            }
+        },
+        canExecuteCreateServer() {
+            return Boolean(
+                this.canExecuteSetupCreate
+                && this.createExecuteEndpoint
+                && !this.creatingServer
+                && !this.checkingCreationPreflight
+                && this.creationPreflight?.ready_for_execution
+                && this.creationPreflightDraftFingerprint
+                && this.creationPreflightDraftFingerprint === this.draftFingerprint()
+                && this.draft.eula_accepted
+            );
+        },
+        createServerGateText() {
+            if (!this.canExecuteSetupCreate || !this.createExecuteEndpoint) {
+                return 'Owner or manager-admin authorization is required before files can be created.';
+            }
+            if (this.creatingServer) return 'Creating files inside the approved target folder.';
+            if (this.checkingCreationPreflight) return 'Waiting for creation preflight to finish.';
+            if (!this.creationPreflight) return 'Run creation preflight before creating server files.';
+            if (!this.creationPreflight.ready_for_execution) return 'Resolve creation preflight warnings before execution.';
+            if (!this.draft.eula_accepted) return 'Accept the Minecraft EULA before creating server files.';
+            if (this.creationPreflightDraftFingerprint !== this.draftFingerprint()) {
+                return 'Draft changed after preflight. Run creation preflight again.';
+            }
+            return 'Ready to create Paper jar, start.sh, server.properties, eula.txt, and inactive profile metadata.';
+        },
+        async executeCreateServer() {
+            if (!this.canExecuteCreateServer()) return;
+            const fingerprint = this.draftFingerprint();
+            this.creatingServer = true;
+            this.createServerError = '';
+            this.errorMessage = '';
+            this.fieldErrors = {};
+            this.createdServerResult = null;
+            this.createdServerDraftChanged = false;
+            try {
+                const response = await fetch(this.createExecuteEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CORA-Setup-Intent': 'create-server',
+                    },
+                    body: JSON.stringify(this.draft),
+                });
+                const payload = await response.json();
+                const draftStillCurrent = fingerprint === this.draftFingerprint();
+                if (draftStillCurrent) {
+                    if (payload.preview) this.preview = payload.preview;
+                    if (payload.preflight) {
+                        this.creationPreflight = payload.preflight;
+                        this.creationPreflightDraftFingerprint = fingerprint;
+                    }
+                }
+                if (!response.ok || payload.status !== 'ok') {
+                    this.fieldErrors = draftStillCurrent ? (payload.errors || {}) : {};
+                    const errorMessage = payload.error || 'Server creation failed.';
+                    this.createServerError = draftStillCurrent
+                        ? errorMessage
+                        : `The submitted create request finished after the draft changed: ${errorMessage}`;
+                    return;
+                }
+                this.createdServerResult = payload.result || null;
+                this.createdServerDraftChanged = !draftStillCurrent;
+            } catch (error) {
+                this.createServerError = error.message || 'Server creation failed.';
+            } finally {
+                this.creatingServer = false;
+            }
+        },
+        installPlanReadyText() {
+            if (!this.preview?.install_plan) return 'PENDING';
+            return this.preview.install_plan.ready_for_creation ? 'PLAN READY' : 'CHECK FOLDER';
+        },
+        installPlanReadyClass() {
+            if (this.preview?.install_plan?.ready_for_creation) return 'border-cyan-500/40 bg-cyan-500/15 text-cyan-100';
+            if (this.preview?.install_plan) return 'border-amber-500/40 bg-amber-500/15 text-amber-100';
+            return 'border-slate-500/30 bg-slate-500/15 text-slate-300';
+        },
+        creationPreflightStatusText() {
+            if (this.checkingCreationPreflight) return 'CHECKING';
+            if (this.creationPreflight?.ready_for_execution) return 'PREFLIGHT READY';
+            if (this.creationPreflight?.ready_for_creation) return 'POLICY NEEDED';
+            if (this.creationPreflight) return 'NOT READY';
+            if (this.creationPreflightError) return 'INVALID';
+            return 'NOT CHECKED';
+        },
+        creationPreflightStatusClass() {
+            if (this.creationPreflight?.ready_for_execution) return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-100';
+            if (this.creationPreflight || this.creationPreflightError) return 'border-amber-500/40 bg-amber-500/15 text-amber-100';
+            return 'border-slate-500/30 bg-slate-500/15 text-slate-300';
+        },
+        formatMb(value) {
+            const number = Number(value || 0);
+            return number ? `${number.toLocaleString()} MB` : '-';
+        },
+    };
+}
+</script>
+{% endblock %}
