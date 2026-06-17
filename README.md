@@ -19,11 +19,11 @@ credentials, logs, backups, or incident artifacts.
 
 ## Version
 
-Current public preview: [`v0.1.0-public-preview`](https://github.com/TodLop/CORA-Outpost/releases/tag/v0.1.0-public-preview).
+Current public preview: [`v0.2.0`](https://github.com/TodLop/CORA-Outpost/releases/tag/v0.2.0).
 
-This version marks the first public documentation preview of CORA-Outpost. It is
-ready for repository review, screenshots, and architecture inspection, but it is
-not yet a bundled fake-data demo.
+This version adds the guarded Minecraft server setup workspace to the public
+extraction. It is ready for repository review, screenshots, architecture
+inspection, and setup-flow review, but it is not yet a bundled fake-data demo.
 
 ## Public Preview
 
