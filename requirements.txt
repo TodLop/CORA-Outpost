@@ -7,6 +7,8 @@ python-dotenv
 pydantic
 PyYAML
 requests
+google-auth-oauthlib
+google-api-python-client
 httpx>=0.27.0
 websockets>=12.0
 Pillow
@@ -16,4 +18,3 @@ alembic>=1.14.0
 bcrypt
 pytest
 pytest-asyncio
-
