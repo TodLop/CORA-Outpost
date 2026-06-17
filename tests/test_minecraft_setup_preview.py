@@ -1300,8 +1300,42 @@ def test_setup_executor_refuses_to_cleanup_unlisted_staging_files(monkeypatch, t
     assert (files_dir / "unlisted.tmp").read_text(encoding="utf-8") == "keep me\n"
 
 
+SETUP_ROUTE_PATHS = {
+    "/minecraft/admin/setup",
+    "/minecraft/admin/api/minecraft/setup/defaults",
+    "/minecraft/admin/api/minecraft/setup/choose-folder",
+    "/minecraft/admin/api/minecraft/setup/preview",
+    "/minecraft/admin/api/minecraft/setup/create-server",
+    "/minecraft/admin/api/minecraft/setup/create-server/execute",
+}
+
+
+def _route_paths(routes, prefix: str = "") -> set[str]:
+    paths = set()
+    for route in routes:
+        route_path = getattr(route, "path", None)
+        if route_path is not None:
+            paths.add(f"{prefix}{route_path}")
+
+        nested_routes = getattr(route, "routes", ())
+        if nested_routes:
+            paths.update(_route_paths(nested_routes, f"{prefix}{route_path or ''}"))
+
+        original_router = getattr(route, "original_router", None)
+        if original_router is not None:
+            include_context = getattr(route, "include_context", None)
+            include_prefix = getattr(include_context, "prefix", "")
+            paths.update(
+                _route_paths(
+                    getattr(original_router, "routes", ()),
+                    f"{prefix}{include_prefix}",
+                )
+            )
+    return paths
+
+
 def _app_route_paths() -> set[str]:
-    return {route.path for route in create_app().routes if hasattr(route, "path")}
+    return _route_paths(create_app().routes)
 
 
 def test_minecraft_admin_setup_routes_follow_module_enabled_state(monkeypatch):
@@ -1309,18 +1343,8 @@ def test_minecraft_admin_setup_routes_follow_module_enabled_state(monkeypatch):
 
     monkeypatch.setenv("ENABLED_MODULES", "minecraft_admin")
     enabled_paths = _app_route_paths()
-    assert "/minecraft/admin/setup" in enabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/defaults" in enabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/choose-folder" in enabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/preview" in enabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/create-server" in enabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/create-server/execute" in enabled_paths
+    assert SETUP_ROUTE_PATHS <= enabled_paths
 
     monkeypatch.setenv("ENABLED_MODULES", "minecraft_runtime")
     disabled_paths = _app_route_paths()
-    assert "/minecraft/admin/setup" not in disabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/defaults" not in disabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/choose-folder" not in disabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/preview" not in disabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/create-server" not in disabled_paths
-    assert "/minecraft/admin/api/minecraft/setup/create-server/execute" not in disabled_paths
+    assert SETUP_ROUTE_PATHS.isdisjoint(disabled_paths)
